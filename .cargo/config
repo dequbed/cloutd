@@ -1,3 +1,5 @@
-[build.x86_64]
-rustflags = ["-C", "ar=llvm-ar", "-C", "linker=clang", "-C", "link-args=-fuse-ld=lld"]
+[target.x86_64-unknown-linux-gnu]
+ar = "llvm-ar"
+linker = "clang"
+rustflags = ["-C", "link-args=-fuse-ld=lld"]
 
