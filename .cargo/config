@@ -3,3 +3,5 @@ ar = "llvm-ar"
 linker = "clang"
 rustflags = ["-C", "link-args=-fuse-ld=lld"]
 
+[target.mipsel-unknown-linux-musl]
+linker = "mipsel-openwrt-linux-musl-gcc"
