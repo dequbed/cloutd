@@ -44,6 +44,13 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "cloutd"
+version = "0.0.1"
+dependencies = [
+ "pnetlink 0.0.2",
+]
+
+[[package]]
 name = "crossbeam-deque"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -435,13 +442,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "unreachable 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "tiny"
-version = "0.0.1"
-dependencies = [
- "pnetlink 0.0.2",
 ]
 
 [[package]]
