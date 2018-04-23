@@ -1,0 +1,3 @@
+[build]
+rustflags = ["-C", "ar=llvm-ar", "-C", "linker=clang", "-C", "link-args=-fuse-ld=lld"]
+

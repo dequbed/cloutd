@@ -1,0 +1,15 @@
+[package]
+name = "tiny"
+version = "0.0.1"
+authors = []
+
+[dependencies]
+pnetlink = { path = "../pnetlink" }
+
+[profile.release]
+opt-level = "s"
+debug = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = "abort"
