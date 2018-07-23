@@ -4,7 +4,16 @@ version = "0.0.1"
 authors = []
 
 [dependencies]
-pnetlink = { path = "../pnetlink" }
+#pnetlink = { path = "../pnetlink" }
+tokio = "0.1"
+tokio-codec = "0.1"
+bytes = "0.4"
+log = "0.4"
+libc = "0.2"
+tokio-reactor = "0.1"
+mio = "0.6"
+futures = "0.1"
+pnet_sys = "0.21"
 
 [profile.release]
 opt-level = "s"
