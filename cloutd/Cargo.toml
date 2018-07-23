@@ -14,6 +14,7 @@ tokio-reactor = "0.1"
 mio = "0.6"
 futures = "0.1"
 pnet_sys = "0.21"
+nom = "4.0"
 
 [profile.release]
 opt-level = "s"

@@ -20,6 +20,9 @@ extern crate futures;
 extern crate libc;
 extern crate pnet_sys;
 
+#[macro_use]
+extern crate nom;
+
 use tokio::reactor::Reactor;
 
 mod nhrp;
