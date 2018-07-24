@@ -9,6 +9,7 @@ static GLOBAL: System = System;
 
 extern crate tokio;
 extern crate tokio_codec;
+extern crate tokio_current_thread;
 extern crate bytes;
 
 #[macro_use]
@@ -24,6 +25,11 @@ extern crate pnet_sys;
 extern crate nom;
 
 use tokio::reactor::Reactor;
+use tokio_current_thread::CurrentThread;
+
+use futures::Stream;
+use futures::Future;
+
 
 mod nhrp;
 
@@ -32,6 +38,17 @@ fn main() {
     let h = r.handle();
 
     let s = nhrp::NhrpSocket::new_with_handle(&h).unwrap();
+    let f = nhrp::frame::NhrpFramed::new(s, nhrp::codec::NhrpCodec);
 
+    let ft = f.for_each(|p| {
+        println!("{:?}", p);
+        Ok(())
+    }).map_err(|e| println!("Error occured: {}", e));
+
+    println!("Starting up!");
+    let mut executor = CurrentThread::new_with_park(r);
+    executor.spawn(ft);
+    executor.run().unwrap();
+    println!("Done?!");
 }
 

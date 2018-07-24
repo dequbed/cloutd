@@ -14,6 +14,7 @@ impl AddrTL {
     }
 }
 
+#[derive(Debug)]
 pub struct NhrpPacket {
     header: FixedHeader,
     mandatory: MandatoryPart,
@@ -182,6 +183,7 @@ pub struct ClientInformationEntry {
     client_proto_addr: Vec<u8>,
 }
 
+#[derive(Debug)]
 pub struct Extension {
     //FIXME
 }

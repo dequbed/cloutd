@@ -1,9 +1,10 @@
 
-mod socket;
-mod recv_nhrp;
-mod send_nhrp;
-mod frame;
-mod protocol;
-mod codec;
+pub mod socket;
+pub mod recv_nhrp;
+pub mod send_nhrp;
+pub mod frame;
+pub mod protocol;
+pub mod codec;
 
 pub use self::socket::*;
+pub use self::codec::NhrpCodec;

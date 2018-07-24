@@ -31,10 +31,6 @@ impl NhrpSocket {
         Ok (NhrpSocket { io: PollEvented::new_with_handle(s, handle)? })
     }
 
-    pub fn connect(&self, addr: &SocketAddr) -> io::Result<()> {
-        self.io.get_ref().connect(addr)
-    }
-
     pub fn poll_send_to(&mut self, buf: &[u8], addr: &SocketAddr) -> Poll<usize, io::Error> {
         try_ready!(self.io.poll_write_ready());
 
@@ -71,7 +67,8 @@ struct NhrpRawSocket {
 
 impl NhrpRawSocket {
     pub fn new() -> io::Result<NhrpRawSocket> {
-        let fd = unsafe {  p::socket(c::PF_PACKET, c::SOCK_DGRAM | c::SOCK_NONBLOCK, 0x2001) };
+        let protocol: i32 = 0x2001;
+        let fd = unsafe {  p::socket(c::AF_PACKET, c::SOCK_DGRAM | c::O_NONBLOCK, protocol.to_le()) };
 
         if fd < 0 {
             let err = io::Error::last_os_error();
@@ -80,20 +77,6 @@ impl NhrpRawSocket {
 
         Ok (NhrpRawSocket { fd: fd })
 
-    }
-
-    pub fn connect(&self, addr: &SocketAddr) -> io::Result<()> {
-        let mut caddr = unsafe { mem::zeroed() };
-        let slen = p::addr_to_sockaddr(*addr, &mut caddr);
-        let caddr_ptr = (&caddr as *const p::SockAddrStorage) as *const p::SockAddr;
-
-        let res = unsafe { c::connect(self.fd, caddr_ptr, slen) };
-
-        if res != 0 {
-            return Err(io::Error::last_os_error())
-        }
-
-        return Ok(())
     }
 
     pub fn send_to(&self, buf: &[u8], addr: &SocketAddr) -> io::Result<usize> {
