@@ -324,4 +324,4 @@ named!(cie<ClientInformationEntry>, do_parse!(
     })
 ));
 
-named_args!(extensions(pktsz: u16, extof: u16)<Extension>, value!(Extension {}));
+named_args!(extensions(_pktsz: u16, _extof: u16)<Extension>, value!(Extension {}));
