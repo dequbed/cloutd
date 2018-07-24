@@ -38,7 +38,9 @@ fn main() {
     let h = r.handle();
 
     let s = nhrp::NhrpSocket::new_with_handle(&h).unwrap();
+    println!("{:?}", &s);
     let f = nhrp::frame::NhrpFramed::new(s, nhrp::codec::NhrpCodec);
+
 
     let ft = f.for_each(|p| {
         println!("{:?}", p);
@@ -46,9 +48,7 @@ fn main() {
     }).map_err(|e| println!("Error occured: {}", e));
 
     println!("Starting up!");
-    let mut executor = CurrentThread::new_with_park(r);
-    executor.spawn(ft);
-    executor.run().unwrap();
+    tokio::runtime::run(ft);
     println!("Done?!");
 }
 
