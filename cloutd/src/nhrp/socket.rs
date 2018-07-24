@@ -68,12 +68,14 @@ struct NhrpRawSocket {
 impl NhrpRawSocket {
     pub fn new() -> io::Result<NhrpRawSocket> {
         let protocol: i32 = 0x2001;
-        let fd = unsafe {  p::socket(c::AF_PACKET, c::SOCK_DGRAM | c::O_NONBLOCK, protocol.to_le()) };
+        let fd = unsafe {  c::socket(c::PF_PACKET, c::SOCK_DGRAM, protocol.to_be()) };
 
         if fd < 0 {
             let err = io::Error::last_os_error();
             return Err(err);
         }
+
+        unsafe { c::fcntl(fd, c::F_SETFD, c::FD_CLOEXEC); }
 
         Ok (NhrpRawSocket { fd: fd })
 
