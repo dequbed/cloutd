@@ -14,7 +14,7 @@ impl AddrTL {
     }
 }
 
-pub struct NHRPPacket {
+pub struct NhrpPacket {
     header: FixedHeader,
     mandatory: MandatoryPart,
     extensions: Vec<Extension>,
@@ -186,11 +186,11 @@ pub struct Extension {
     //FIXME
 }
 
-named!(parse<NHRPPacket>, do_parse!(
+named!(pub parse<NhrpPacket>, do_parse!(
     h: fixed >>
     m: apply!(mandatory, h.optype, h.shtl.val(), h.sstl.val()) >>
     e: many0!(apply!(extensions, h.pktsz, h.extoff)) >>
-    (NHRPPacket { header: h, mandatory: m, extensions: e })
+    (NhrpPacket { header: h, mandatory: m, extensions: e })
 ));
 
 named!(addrtl<AddrTL>, bits!(do_parse!(

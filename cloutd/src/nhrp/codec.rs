@@ -1,34 +1,33 @@
+use std::io;
+use std::error::Error;
+
+use bytes::{BufMut, BytesMut};
 use tokio_codec::{Decoder, Encoder};
 
-pub struct NhrpPacket {
-    // Fixed Header:
-    /// Address Family Number
-    afn: u16,
-    /// Protocol Type
-    prototype: u16,
-    protosnap: u32,
-    protosnap2: u8,
-    /// Hop Count
-    hopcnt: u8,
-    /// Packet Size
-    pktsz: u16,
-    /// Checksum
-    chksum: u16,
-    /// Extension Offset
-    extoff: u16,
-    /// Operation Version
-    opversion: u8,
-    /// Operation Type
-    optype: u8,
-    /// type/length of NBMA address
-    shtl: u8,
-    /// type/length of NBMA sub-address
-    sstl: u8,
-}
+use super::protocol::{NhrpPacket, parse};
 
 pub struct NhrpCodec;
 
-
 impl Decoder for NhrpCodec {
     type Item = NhrpPacket;
+    type Error = io::Error;
+
+    fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<Self::Item>> {
+        match parse(buf) {
+            Ok((_rem, p)) => {
+                Ok(Some(p))
+            }
+            Err(ref e) if e.is_incomplete() => Ok(None),
+            Err(e) => Err(io::Error::new(io::ErrorKind::Other, e.description()))
+        }
+    }
+}
+
+impl Encoder for NhrpCodec {
+    type Item = NhrpPacket;
+    type Error = io::Error;
+
+    fn encode(&mut self, _item: Self::Item, _buf: &mut BytesMut) -> io::Result<()> {
+        Ok(())
+    }
 }
