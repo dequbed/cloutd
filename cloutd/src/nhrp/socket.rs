@@ -67,8 +67,8 @@ struct NhrpRawSocket {
 
 impl NhrpRawSocket {
     pub fn new() -> io::Result<NhrpRawSocket> {
-        let protocol: i32 = 0x2001;
-        let fd = unsafe {  c::socket(c::PF_PACKET, c::SOCK_DGRAM, protocol.to_be()) };
+        let protocol: i32 = 0x0120;
+        let fd = unsafe {  c::socket(c::PF_PACKET, c::SOCK_DGRAM, protocol) };
 
         if fd < 0 {
             let err = io::Error::last_os_error();
