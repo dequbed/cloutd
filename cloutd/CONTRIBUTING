@@ -1,0 +1,2 @@
+We're using a feature-branch style of development.
+If you want to contribute code, simply create a branch from `development` with the name "feature/<descriptive-name>" and push all code to this branch. If you're done, get a developer to merge your feature-branch into development
