@@ -23,11 +23,13 @@ impl NhrpSocket {
     pub fn new() -> io::Result<NhrpSocket> {
         let s = NhrpRawSocket::new()?;
 
+        println!("Created Socket");
         Ok (NhrpSocket { io: PollEvented::new(s) })
     }
     pub fn new_with_handle(handle: &Handle) -> io::Result<NhrpSocket> {
         let s = NhrpRawSocket::new()?;
 
+        println!("Created Socket");
         Ok (NhrpSocket { io: PollEvented::new_with_handle(s, handle)? })
     }
 
@@ -45,14 +47,15 @@ impl NhrpSocket {
     }
 
     pub fn poll_recv_from(&mut self, buf: &mut [u8]) -> Poll<(usize, SocketAddr), io::Error> {
-        try_ready!(self.io.poll_read_ready(Ready::readable()));
+//        try_ready!(self.io.poll_read_ready(Ready::readable()));
+
 
         let mut caddr: p::SockAddrStorage = unsafe { mem::zeroed() };
 
         match self.io.get_ref().recv_from(buf, &mut caddr) {
             Ok(n) => Ok((n, p::sockaddr_to_addr(&caddr, mem::size_of::<p::SockAddrStorage>())?).into()),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_read_ready(Ready::readable())?;
+                //self.io.clear_read_ready(Ready::readable())?;
                 Ok(Async::NotReady)
             },
             Err(e) => Err(e)
@@ -75,10 +78,11 @@ impl NhrpRawSocket {
             return Err(err);
         }
 
-        unsafe { c::fcntl(fd, c::F_SETFD, c::FD_CLOEXEC); }
+        unsafe {
+            c::fcntl(fd, c::F_SETFL, c::O_NONBLOCK);
+        }
 
         Ok (NhrpRawSocket { fd: fd })
-
     }
 
     pub fn send_to(&self, buf: &[u8], addr: &SocketAddr) -> io::Result<usize> {
@@ -99,10 +103,14 @@ impl NhrpRawSocket {
     pub fn recv_from(&self, buf: &mut [u8], caddr: *mut p::SockAddrStorage) -> io::Result<usize> {
         let mut caddrlen = mem::size_of::<p::SockAddrStorage>() as p::SockLen;
 
+        println!("recvfrom");
+
         let cbuf = buf.as_ptr();
         let len = buf.len();
         let flags = 0;
         let res = unsafe { c::recvfrom(self.fd, cbuf as *mut c::c_void, len, flags, caddr as *mut p::SockAddr, &mut caddrlen) };
+
+        println!("Received {} bytes", res);
 
         if res < 0 {
             return Err(io::Error::last_os_error())
@@ -115,12 +123,14 @@ impl Evented for NhrpRawSocket {
     fn register(&self, poll: &mio::Poll, token: Token, interest: Ready, opts: PollOpt)
         -> io::Result<()>
     {
+        println!("registering");
         EventedFd(&self.fd).register(poll, token, interest, opts)
     }
 
     fn reregister(&self, poll: &mio::Poll, token: Token, interest: Ready, opts: PollOpt)
         -> io::Result<()>
     {
+        println!("reRegistering");
         EventedFd(&self.fd).reregister(poll, token, interest, opts)
     }
 
