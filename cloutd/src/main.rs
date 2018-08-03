@@ -25,10 +25,11 @@ extern crate pnet_sys;
 extern crate nom;
 
 use tokio::reactor::Reactor;
-use tokio_current_thread::CurrentThread;
+use tokio::executor::current_thread::{self,CurrentThread};
 
 use futures::Stream;
 use futures::Future;
+use futures::future::lazy;
 
 
 mod nhrp;
@@ -48,7 +49,13 @@ fn main() {
     }).map_err(|e| println!("Error occured: {}", e));
 
     println!("Starting up!");
-    tokio::runtime::run(ft);
+    current_thread::block_on_all(lazy(|| {
+
+        current_thread::spawn(ft);
+
+        Ok::<_, ()>(())
+    }));
+    //tokio::runtime::run(ft);
     println!("Done?!");
 }
 
