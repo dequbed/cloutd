@@ -32,30 +32,74 @@ use futures::Future;
 use futures::future::lazy;
 
 
+
 mod nhrp;
 
+// 
+use std::mem;
+use mio::{Poll, Events, Token, Ready, PollOpt};
+use pnet_sys as p;
+//
+
+/*
+ *fn main() {
+ *    let r = Reactor::new().unwrap();
+ *    let h = r.handle();
+ *
+ *    let s = nhrp::NhrpSocket::new_with_handle(&h).unwrap();
+ *    println!("{:?}", &s);
+ *    let f = nhrp::frame::NhrpFramed::new(s, nhrp::codec::NhrpCodec);
+ *
+ *
+ *    let ft = f.for_each(|p| {
+ *        println!("{:?}", p);
+ *        Ok(())
+ *    }).map_err(|e| println!("Error occured: {}", e));
+ *
+ *    println!("Starting up!");
+ *    current_thread::block_on_all(lazy(|| {
+ *
+ *        current_thread::spawn(ft);
+ *
+ *        Ok::<_, ()>(())
+ *    }));
+ *    //tokio::runtime::run(ft);
+ *    println!("Done?!");
+ *}
+ */
+
+const SERVER: Token = Token(0);
+
 fn main() {
-    let r = Reactor::new().unwrap();
-    let h = r.handle();
+    let poll = Poll::new().unwrap();
+    let s = nhrp::socket::NhrpRawSocket::new().unwrap();
 
-    let s = nhrp::NhrpSocket::new_with_handle(&h).unwrap();
-    println!("{:?}", &s);
-    let f = nhrp::frame::NhrpFramed::new(s, nhrp::codec::NhrpCodec);
+    poll.register(&s, SERVER, Ready::readable(), PollOpt::edge()).unwrap();
 
+    let mut events = Events::with_capacity(1024);
 
-    let ft = f.for_each(|p| {
-        println!("{:?}", p);
-        Ok(())
-    }).map_err(|e| println!("Error occured: {}", e));
+    loop {
+        poll.poll(&mut events, None).unwrap();
 
-    println!("Starting up!");
-    current_thread::block_on_all(lazy(|| {
+        for events in events.iter() {
+            match events.token() {
+                SERVER => {
+                    let mut caddr: p::SockAddrStorage = unsafe { mem::zeroed() };
 
-        current_thread::spawn(ft);
+                    let mut buf = Vec::with_capacity(100);
 
-        Ok::<_, ()>(())
-    }));
-    //tokio::runtime::run(ft);
-    println!("Done?!");
+                    match s.recv_from(&mut buf, &mut caddr) {
+                        Ok(n) => {
+                            let a = p::sockaddr_to_addr(&caddr, mem::size_of::<p::SockAddrStorage>());
+                            println!("{:?}", a);
+                        },
+                        Err(e) => {
+                            println!("{:?}", e);
+                        }
+                    }
+                },
+                _ => unreachable!()
+            }
+        }
+    }
 }
-
