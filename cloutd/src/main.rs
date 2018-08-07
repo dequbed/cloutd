@@ -29,11 +29,12 @@ extern crate nom;
 use tokio::reactor::Reactor;
 use tokio::executor::current_thread::{self,CurrentThread};
 
-use futures::Stream;
 use futures::Future;
-use futures::future::lazy;
+use futures::Async;
+use futures::Stream;
 
-
+use std::thread;
+use std::time::Duration;
 
 mod nhrp;
 
@@ -72,7 +73,7 @@ use pnet_sys as p;
 
 const SERVER: Token = Token(0);
 
-fn main() {
+fn main_mio() {
     let poll = Poll::new().unwrap();
     let s = nhrp::socket::NhrpRawSocket::new().unwrap();
 
@@ -94,6 +95,7 @@ fn main() {
                         Ok(n) => {
                             let a = ::nhrp::socket::sockaddr_to_addr(&caddr, mem::size_of::<p::SockAddrStorage>());
                             println!("{:?}", a);
+                            println!("{:?}", buf);
                         },
                         Err(e) => {
                             println!("{:?}", e);
@@ -104,4 +106,24 @@ fn main() {
             }
         }
     }
+}
+
+fn main_tokio() {
+    let nhrpsock = nhrp::NhrpSocket::new().unwrap();
+
+    let mut f = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
+
+    loop {
+        match f.poll() {
+            Ok(Async::NotReady) => thread::sleep(Duration::from_millis(500)),
+            Ok(Async::Ready(n)) => println!("{:?}",n),
+            Err(e) => println!("{:?}", e),
+        }
+    }
+
+
+}
+
+fn main() {
+    main_tokio()
 }
