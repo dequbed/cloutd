@@ -14,34 +14,36 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use futures::{Poll, Async};
 
 use tokio::reactor::Handle;
-use tokio::reactor::PollEvented2 as PollEvented;
+use tokio::reactor::Registration;
 
 #[derive(Debug)]
 pub struct NhrpSocket {
-    io: PollEvented<NhrpRawSocket>
+    io: NhrpRawSocket,
+    r: Registration,
 }
 
 impl NhrpSocket {
     pub fn new() -> io::Result<NhrpSocket> {
         let s = NhrpRawSocket::new()?;
+        let r = Registration::new();
 
-        println!("Created Socket");
-        Ok (NhrpSocket { io: PollEvented::new(s) })
+        let _result = r.register(&s)?;
+
+        Ok (NhrpSocket { io: s, r: r })
     }
     pub fn new_with_handle(handle: &Handle) -> io::Result<NhrpSocket> {
         let s = NhrpRawSocket::new()?;
+        let r = Registration::new();
 
-        println!("Created Socket");
-        Ok (NhrpSocket { io: PollEvented::new_with_handle(s, handle)? })
+        let _result = r.register_with(&s, handle)?;
+
+        Ok (NhrpSocket { io: s, r: r })
     }
 
     pub fn poll_send_to(&mut self, buf: &[u8], addr: &IpAddr) -> Poll<usize, io::Error> {
-        try_ready!(self.io.poll_write_ready());
-
-        match self.io.get_ref().send_to(buf, addr) {
+        match self.io.send_to(buf, addr) {
             Ok(n) => Ok(n.into()),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_write_ready()?;
                 Ok(Async::NotReady)
             },
             Err(e) => Err(e)
@@ -49,18 +51,14 @@ impl NhrpSocket {
     }
 
     pub fn poll_recv_from(&mut self, buf: &mut [u8]) -> Poll<(usize, IpAddr), io::Error> {
-//        try_ready!(self.io.poll_read_ready(Ready::readable()));
-
-
         let mut caddr: p::SockAddrStorage = unsafe { mem::zeroed() };
 
-        match self.io.get_ref().recv_from(buf, &mut caddr) {
+        match self.io.recv_from(buf, &mut caddr) {
             Ok(n) => {
                 let a = sockaddr_to_addr(&caddr, mem::size_of::<p::SockAddrStorage>());
                 Ok((n, a.unwrap()).into())
             },
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                //self.io.clear_read_ready(Ready::readable())?;
                 Ok(Async::NotReady)
             },
             Err(e) => Err(e)
@@ -108,10 +106,10 @@ impl NhrpRawSocket {
     pub fn recv_from(&self, buf: &mut [u8], caddr: *mut p::SockAddrStorage) -> io::Result<usize> {
         let mut caddrlen = mem::size_of::<p::SockAddrStorage>() as p::SockLen;
 
-        println!("recvfrom");
 
         let cbuf = buf.as_ptr();
         let len = buf.len();
+        println!("recvfrom {}", len);
         let flags = 0;
         let res = unsafe { c::recvfrom(self.fd, cbuf as *mut c::c_void, len, flags, caddr as *mut c::sockaddr, &mut caddrlen) };
 
