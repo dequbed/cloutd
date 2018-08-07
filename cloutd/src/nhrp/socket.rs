@@ -14,36 +14,34 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use futures::{Poll, Async};
 
 use tokio::reactor::Handle;
-use tokio::reactor::Registration;
+use tokio::reactor::PollEvented2;
 
 #[derive(Debug)]
 pub struct NhrpSocket {
-    io: NhrpRawSocket,
-    r: Registration,
+    io: PollEvented2<NhrpRawSocket>,
 }
 
 impl NhrpSocket {
     pub fn new() -> io::Result<NhrpSocket> {
         let s = NhrpRawSocket::new()?;
-        let r = Registration::new();
+        let io = PollEvented2::new(s);
 
-        let _result = r.register(&s)?;
-
-        Ok (NhrpSocket { io: s, r: r })
+        Ok (NhrpSocket { io: io })
     }
     pub fn new_with_handle(handle: &Handle) -> io::Result<NhrpSocket> {
         let s = NhrpRawSocket::new()?;
-        let r = Registration::new();
+        let io = PollEvented2::new_with_handle(s, handle)?;
 
-        let _result = r.register_with(&s, handle)?;
-
-        Ok (NhrpSocket { io: s, r: r })
+        Ok (NhrpSocket { io: io })
     }
 
     pub fn poll_send_to(&mut self, buf: &[u8], addr: &IpAddr) -> Poll<usize, io::Error> {
-        match self.io.send_to(buf, addr) {
+        try_ready!(self.io.poll_write_ready());
+
+        match self.io.get_ref().send_to(buf, addr) {
             Ok(n) => Ok(n.into()),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                self.io.clear_write_ready();
                 Ok(Async::NotReady)
             },
             Err(e) => Err(e)
@@ -51,14 +49,16 @@ impl NhrpSocket {
     }
 
     pub fn poll_recv_from(&mut self, buf: &mut [u8]) -> Poll<(usize, IpAddr), io::Error> {
+        try_ready!(self.io.poll_read_ready(Ready::readable()));
         let mut caddr: p::SockAddrStorage = unsafe { mem::zeroed() };
 
-        match self.io.recv_from(buf, &mut caddr) {
+        match self.io.get_ref().recv_from(buf, &mut caddr) {
             Ok(n) => {
                 let a = sockaddr_to_addr(&caddr, mem::size_of::<p::SockAddrStorage>());
                 Ok((n, a.unwrap()).into())
             },
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                self.io.clear_read_ready(Ready::readable());
                 Ok(Async::NotReady)
             },
             Err(e) => Err(e)
@@ -126,14 +126,12 @@ impl Evented for NhrpRawSocket {
     fn register(&self, poll: &mio::Poll, token: Token, interest: Ready, opts: PollOpt)
         -> io::Result<()>
     {
-        println!("registering");
         EventedFd(&self.fd).register(poll, token, interest, opts)
     }
 
     fn reregister(&self, poll: &mio::Poll, token: Token, interest: Ready, opts: PollOpt)
         -> io::Result<()>
     {
-        println!("reRegistering");
         EventedFd(&self.fd).reregister(poll, token, interest, opts)
     }
 
