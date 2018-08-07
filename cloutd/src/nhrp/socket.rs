@@ -161,6 +161,11 @@ pub fn sockaddr_to_addr(storage: &p::SockAddrStorage, len: usize) -> io::Result<
             let storage: &c::sockaddr_ll = unsafe { mem::transmute(storage) };
             println!("sll_addr: {:?}, sll_protocol: {:#06X}, sll_hatype: {:#06X}, sll_pkttype: {:#06X}", storage.sll_addr, u16::from_be(storage.sll_protocol), u16::from_be(storage.sll_hatype), storage.sll_pkttype);
             if storage.sll_protocol == 0x2001u16.to_be() {
+
+                // FIXME: Find a better way to figure out the underlying address type
+                //        Maybe don't strip the GRE header (aka use PROTO_RAW in the socket) and
+                //        look at the ethertype?
+
                 match storage.sll_halen {
                     4 => {
                         let mut addr: [u8; 4] = [0;4];
@@ -172,6 +177,7 @@ pub fn sockaddr_to_addr(storage: &p::SockAddrStorage, len: usize) -> io::Result<
                         let d = ip as u8;
                         Ok(IpAddr::V4(Ipv4Addr::new(a, b, c, d)))
                     },
+                    // FIXME: IPv6 Support!
                     _ => Err(io::Error::new(io::ErrorKind::InvalidData, "Not implemented yet, sorry."))
                 }
             } else {
