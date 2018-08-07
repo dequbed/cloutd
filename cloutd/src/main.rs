@@ -31,6 +31,9 @@ use futures::Stream;
 
 use tokio::prelude::*;
 use std::time::{Duration, Instant};
+use tokio::timer::Interval;
+
+use tokio::runtime::Runtime;
 
 mod nhrp;
 
@@ -111,9 +114,14 @@ fn main_tokio() {
     let future = f.for_each(|frame| {println!("{:?}", frame); Ok(())}).map_err(|e| println!("{:?}", e));
 
     let when = Instant::now() + Duration::from_secs(2);
+    let interval = Interval::new(Instant::now(), Duration::from_secs(1)).for_each(|tick| {println!("Tick"); Ok(())}).map_err(|e| println!("{:?}", e));
 
-    tokio::run(future.deadline(when).map_err(|e| {println!("Timer ran out.")}));
+    let mut rt = Runtime::new().unwrap();
 
+    rt.spawn(future);
+    rt.spawn(interval);
+
+    rt.shutdown_on_idle().wait().unwrap();
 }
 
 fn main() {
