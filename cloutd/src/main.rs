@@ -1,4 +1,5 @@
 #![feature(alloc_system, allocator_api)]
+#![feature(int_to_from_bytes)]
 
 extern crate alloc_system;
 
@@ -6,6 +7,7 @@ use alloc_system::System;
 
 #[global_allocator]
 static GLOBAL: System = System;
+
 
 extern crate tokio;
 extern crate tokio_codec;
@@ -88,9 +90,9 @@ fn main() {
 
                     let mut buf = Vec::with_capacity(100);
 
-                    match s.recv_from(&mut buf, &mut caddr) {
+                    match s.recv_from(buf.as_mut_slice(), &mut caddr) {
                         Ok(n) => {
-                            let a = p::sockaddr_to_addr(&caddr, mem::size_of::<p::SockAddrStorage>());
+                            let a = ::nhrp::socket::sockaddr_to_addr(&caddr, mem::size_of::<p::SockAddrStorage>());
                             println!("{:?}", a);
                         },
                         Err(e) => {

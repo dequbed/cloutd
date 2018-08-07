@@ -9,6 +9,8 @@ use mio::{self, Evented, Token, Ready, PollOpt};
 use mio::unix::EventedFd;
 use std::os::unix::io::RawFd;
 
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
 use futures::{Poll, Async};
 
 use tokio::reactor::Handle;
@@ -64,7 +66,7 @@ impl NhrpSocket {
 }
 
 #[derive(Debug)]
-struct NhrpRawSocket {
+pub struct NhrpRawSocket {
     fd: RawFd,
 }
 
@@ -85,9 +87,9 @@ impl NhrpRawSocket {
         Ok (NhrpRawSocket { fd: fd })
     }
 
-    pub fn send_to(&self, buf: &[u8], addr: &SocketAddr) -> io::Result<usize> {
+    pub fn send_to(&self, buf: &[u8], addr: &IpAddr) -> io::Result<usize> {
         let mut caddr = unsafe { mem::zeroed() };
-        let slen = p::addr_to_sockaddr(*addr, &mut caddr);
+        let slen = addr_to_sockaddr(*addr, &mut caddr);
         let caddr_ptr = (&caddr as *const p::SockAddrStorage) as *const p::SockAddr;
 
         let cbuf = buf.as_ptr();
@@ -108,7 +110,7 @@ impl NhrpRawSocket {
         let cbuf = buf.as_ptr();
         let len = buf.len();
         let flags = 0;
-        let res = unsafe { c::recvfrom(self.fd, cbuf as *mut c::c_void, len, flags, caddr as *mut p::SockAddr, &mut caddrlen) };
+        let res = unsafe { c::recvfrom(self.fd, cbuf as *mut c::c_void, len, flags, caddr as *mut c::sockaddr, &mut caddrlen) };
 
         println!("Received {} bytes", res);
 
@@ -142,5 +144,37 @@ impl Evented for NhrpRawSocket {
 impl Drop for NhrpRawSocket {
     fn drop(&mut self) {
         unsafe { c::close(self.fd) };
+    }
+}
+
+pub fn addr_to_sockaddr(_addr: IpAddr, _storage: &mut p::SockAddrStorage) -> p::SockLen {
+    0
+}
+
+pub fn sockaddr_to_addr(storage: &p::SockAddrStorage, len: usize) -> io::Result<IpAddr> {
+    match storage.ss_family as c::c_int {
+        c::PF_PACKET => {
+            assert!(len as usize >= mem::size_of::<c::sockaddr_ll>());
+            let storage: &c::sockaddr_ll = unsafe { mem::transmute(storage) };
+            println!("sll_addr: {:?}, sll_protocol: {:#06X}, sll_hatype: {:#06X}, sll_pkttype: {:#06X}", storage.sll_addr, u16::from_be(storage.sll_protocol), u16::from_be(storage.sll_hatype), storage.sll_pkttype);
+            if storage.sll_protocol == 0x2001u16.to_be() {
+                match storage.sll_halen {
+                    4 => {
+                        let mut addr: [u8; 4] = [0;4];
+                        addr.clone_from_slice(&storage.sll_addr[0..4]);
+                        let ip = u32::from_be(u32::from_bytes(addr));
+                        let a = (ip >> 24) as u8;
+                        let b = (ip >> 16) as u8;
+                        let c = (ip >> 8) as u8;
+                        let d = ip as u8;
+                        Ok(IpAddr::V4(Ipv4Addr::new(a, b, c, d)))
+                    },
+                    _ => Err(io::Error::new(io::ErrorKind::InvalidData, "Not implemented yet, sorry."))
+                }
+            } else {
+                Err(io::Error::new(io::ErrorKind::InvalidData, "Not implemented yet, sorry."))
+            }
+        },
+        _ => Err(io::Error::new(io::ErrorKind::InvalidData, "Not implemented yet, sorry."))
     }
 }
