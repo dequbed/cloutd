@@ -23,7 +23,7 @@ pub struct NhrpPacket {
 
 #[derive(Debug)]
 pub struct FixedHeader {
-    // Fixed Header:
+    /// NHRP Fixed Header:
     /// Address Family Number
     afn: u16,
     /// Protocol Type
@@ -185,29 +185,32 @@ pub struct ClientInformationEntry {
 
 #[derive(Debug)]
 pub struct Extension {
-    //FIXME
+    compulsory: bool,
+    exttype: u16,
+    extlen: u16,
+    extval: Vec<u8>,
 }
 
 named!(pub parse<NhrpPacket>, do_parse!(
-    h: fixed >>
-    m: apply!(mandatory, h.optype, h.shtl.val(), h.sstl.val()) >>
-    e: many0!(apply!(extensions, h.pktsz, h.extoff)) >>
+    h: length_value!(value!(20), fixed) >>
+    m: length_value!(value!(h.extoff-20), apply!(mandatory, h.optype, h.shtl.val(), h.sstl.val())) >>
+    e: dbg!(many0!(complete!(apply!(extensions, h.pktsz, h.extoff)))) >>
     (NhrpPacket { header: h, mandatory: m, extensions: e })
 ));
 
-named!(addrtl<AddrTL>, bits!(do_parse!(
+named!(addrtl<AddrTL>, length_value!(value!(1), bits!(do_parse!(
     tag_bits!(u8, 1, 0) >>
     r: switch!( take_bits!(u8, 1),
-        0 => do_parse!(
+        1 => do_parse!(
             len: take_bits!(u8, 6) >>
             (AddrTL::E164(len)))
         |
-        1 => do_parse!(
+        0 => do_parse!(
             len: take_bits!(u8, 6) >>
             (AddrTL::NSAP(len)))
     ) >>
     (r)
-)));
+))));
 
 named!(fixed<FixedHeader>, do_parse!(
     afn: be_u16 >>
@@ -262,15 +265,18 @@ named_args!(reqmandatory(src_nbma_addr_len: u8, src_nbma_saddr_len: u8)<Mandator
                 dst_proto_addr_len: dst_proto_addr_len,
                 flags: flags,
                 request_id: request_id,
-                // FIXME: DON'T COPY FFS
+                // // FIXME: Don't copy.
                 src_nbma_addr: src_nbma_addr.to_vec(),
                 src_nbma_saddr: src_nbma_saddr.to_vec(),
                 src_proto_addr: src_proto_addr.to_vec(),
                 dst_proto_addr: dst_proto_addr.to_vec(),
             })
         ) >>
-        cie: many0!(cie) >>
-        (MandatoryPart::ReqRep { hdr, cie })
+        cie: many0!(complete!(cie)) >>
+        (MandatoryPart::ReqRep {
+            hdr: hdr,
+            cie: cie,
+        })
     )
 );
 
@@ -290,6 +296,7 @@ named_args!(errmandatory(src_nbma_addr_len: u8, src_nbma_saddr_len: u8)<Mandator
             dst_proto_addr_len: dst_proto_addr_len,
             error_code: error_code,
             error_offset: error_offset,
+            // FIXME: Don't copy.
             src_nbma_addr: src_nbma_addr.to_vec(),
             src_nbma_saddr: src_nbma_saddr.to_vec(),
             src_proto_addr: src_proto_addr.to_vec(),
@@ -301,12 +308,14 @@ named_args!(errmandatory(src_nbma_addr_len: u8, src_nbma_saddr_len: u8)<Mandator
 named!(cie<ClientInformationEntry>, do_parse!(
     code: be_u8 >>
     prefixlen: be_u8 >>
+    _unused: be_u16 >>
     mtu: be_u16 >>
     holding_time: be_u16 >>
     client_addr_typelen: addrtl >>
     client_saddr_typelen: addrtl >>
     client_proto_len: be_u8 >>
     preferences: be_u8 >>
+
     client_nbma_addr: take!(client_addr_typelen.val()) >>
     client_nbma_saddr: take!(client_saddr_typelen.val()) >>
     client_proto_addr: take!(client_proto_len) >>
@@ -320,10 +329,26 @@ named!(cie<ClientInformationEntry>, do_parse!(
         client_saddr_typelen: client_saddr_typelen,
         client_proto_len: client_proto_len,
         preferences: preferences,
+        // FIXME: Don't copy.
         client_nbma_addr: client_nbma_addr.to_vec(),
         client_nbma_saddr: client_nbma_saddr.to_vec(),
         client_proto_addr: client_proto_addr.to_vec(),
     })
 ));
 
-named_args!(extensions(_pktsz: u16, _extof: u16)<Extension>, value!(Extension {}));
+named_args!(extensions(_pktsz: u16, _extof: u16)<Extension>, do_parse!(
+    ct: bits!(do_parse!(
+        c: take_bits!(u8, 1) >>
+        take_bits!(u8, 1) >>
+        t: take_bits!(u16, 14) >>
+        ((c,t))
+    )) >>
+    len: be_u16 >>
+    val: take!(len) >>
+    (Extension {
+        compulsory: ct.0 != 0,
+        exttype: ct.1,
+        extlen: len,
+        extval: val.to_vec(),
+    })
+));
