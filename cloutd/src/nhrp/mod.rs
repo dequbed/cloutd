@@ -8,3 +8,5 @@ pub mod codec;
 
 pub use self::socket::*;
 pub use self::codec::NhrpCodec;
+pub use self::frame::NhrpFramed;
+pub use self::recv_nhrp::*;
