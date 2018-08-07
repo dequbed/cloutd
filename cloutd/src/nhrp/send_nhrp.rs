@@ -1,7 +1,7 @@
 use ::nhrp::socket::NhrpSocket;
 
 use std::io;
-use std::net::SocketAddr;
+use std::net::IpAddr;
 
 use futures::{Async, Future, Poll};
 
@@ -16,11 +16,11 @@ pub struct SendNhrp<T> {
 struct SendNhrpInner<T> {
     socket: NhrpSocket,
     buffer: T,
-    addr: SocketAddr,
+    addr: IpAddr,
 }
 
 impl<T> SendNhrp<T> {
-    pub(crate) fn new(socket: NhrpSocket, buffer: T, addr: SocketAddr) -> SendNhrp<T> {
+    pub(crate) fn new(socket: NhrpSocket, buffer: T, addr: IpAddr) -> SendNhrp<T> {
         let inner = SendNhrpInner { socket: socket, buffer: buffer, addr: addr };
         SendNhrp { state: Some(inner) }
     }

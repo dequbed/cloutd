@@ -35,7 +35,7 @@ impl NhrpSocket {
         Ok (NhrpSocket { io: PollEvented::new_with_handle(s, handle)? })
     }
 
-    pub fn poll_send_to(&mut self, buf: &[u8], addr: &SocketAddr) -> Poll<usize, io::Error> {
+    pub fn poll_send_to(&mut self, buf: &[u8], addr: &IpAddr) -> Poll<usize, io::Error> {
         try_ready!(self.io.poll_write_ready());
 
         match self.io.get_ref().send_to(buf, addr) {
@@ -48,14 +48,17 @@ impl NhrpSocket {
         }
     }
 
-    pub fn poll_recv_from(&mut self, buf: &mut [u8]) -> Poll<(usize, SocketAddr), io::Error> {
+    pub fn poll_recv_from(&mut self, buf: &mut [u8]) -> Poll<(usize, IpAddr), io::Error> {
 //        try_ready!(self.io.poll_read_ready(Ready::readable()));
 
 
         let mut caddr: p::SockAddrStorage = unsafe { mem::zeroed() };
 
         match self.io.get_ref().recv_from(buf, &mut caddr) {
-            Ok(n) => Ok((n, p::sockaddr_to_addr(&caddr, mem::size_of::<p::SockAddrStorage>())?).into()),
+            Ok(n) => {
+                let a = sockaddr_to_addr(&caddr, mem::size_of::<p::SockAddrStorage>());
+                Ok((n, a.unwrap()).into())
+            },
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                 //self.io.clear_read_ready(Ready::readable())?;
                 Ok(Async::NotReady)

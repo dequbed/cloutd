@@ -1,5 +1,5 @@
 use std::io;
-use std::net::{SocketAddr, Ipv4Addr, SocketAddrV4};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use futures::{Async, Poll, Stream, Sink, StartSend, AsyncSink};
 
@@ -15,22 +15,35 @@ pub struct NhrpFramed<C> {
     codec: C,
     rd: BytesMut,
     wr: BytesMut,
-    out_addr: SocketAddr,
+    out_addr: IpAddr,
     flushed: bool,
 }
 
 impl<C: Decoder> Stream for NhrpFramed<C> {
-    type Item = (C::Item, SocketAddr);
+    type Item = (C::Item, IpAddr);
     type Error = C::Error;
 
     fn poll(&mut self) -> Poll<Option<(Self::Item)>, Self::Error> {
         self.rd.reserve(INITIAL_RD_CAPACITY);
 
-        let (n, addr) = unsafe {
-            // Read into the buffer without having to initialize the memory.
-            let (n, addr) = try_ready!(self.socket.poll_recv_from(self.rd.bytes_mut()));
-            self.rd.advance_mut(n);
-            (n, addr)
+        /*
+         *let (n, addr) = unsafe {
+         *    // Read into the buffer without having to initialize the memory.
+         *    let (n, addr) = try_ready!(self.socket.poll_recv_from(self.rd.bytes_mut()));
+         *    self.rd.advance_mut(n);
+         *    (n, addr)
+         *};
+         */
+
+        let (n, addr) = {
+            match unsafe { self.socket.poll_recv_from(self.rd.bytes_mut()) } {
+                Ok(Async::Ready((n, addr))) => {
+                    println!("{:?}", addr);
+                    (n, addr)
+                },
+                Ok(Async::NotReady) => return Ok(Async::NotReady),
+                Err(e) => return Err(e.into())
+            }
         };
         println!("received {} bytes, decoding", n);
         let frame_res = self.codec.decode(&mut self.rd);
@@ -43,7 +56,7 @@ impl<C: Decoder> Stream for NhrpFramed<C> {
 }
 
 impl<C: Encoder> Sink for NhrpFramed<C> {
-    type SinkItem = (C::Item, SocketAddr);
+    type SinkItem = (C::Item, IpAddr);
     type SinkError = C::Error;
 
     fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
@@ -102,7 +115,7 @@ impl<C> NhrpFramed<C>{
             codec: codec,
             rd: BytesMut::with_capacity(INITIAL_RD_CAPACITY),
             wr: BytesMut::with_capacity(INITIAL_WR_CAPACITY),
-            out_addr: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), 0)),
+            out_addr: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
             flushed: false,
         }
     }

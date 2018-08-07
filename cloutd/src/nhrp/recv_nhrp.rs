@@ -1,7 +1,7 @@
 use ::nhrp::socket::NhrpSocket;
 
 use std::io;
-use std::net::SocketAddr;
+use std::net::IpAddr;
 
 use futures::{Async, Future, Poll};
 
@@ -28,7 +28,7 @@ impl<T> RecvNhrp<T> {
 impl<T> Future for RecvNhrp<T>
     where T: AsMut<[u8]>,
 {
-    type Item = (NhrpSocket, T, usize, SocketAddr);
+    type Item = (NhrpSocket, T, usize, IpAddr);
     type Error = io::Error;
 
     fn poll(&mut self) -> Poll<Self::Item, io::Error> {
