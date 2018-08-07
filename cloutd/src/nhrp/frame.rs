@@ -38,19 +38,18 @@ impl<C: Decoder> Stream for NhrpFramed<C> {
         let (n, addr) = {
             match unsafe { self.socket.poll_recv_from(self.rd.bytes_mut()) } {
                 Ok(Async::Ready((n, addr))) => {
-                    println!("{:?}", addr);
+                    unsafe { self.rd.advance_mut(n) };
                     (n, addr)
                 },
                 Ok(Async::NotReady) => return Ok(Async::NotReady),
                 Err(e) => return Err(e.into())
             }
         };
-        println!("received {} bytes, decoding", n);
+
         let frame_res = self.codec.decode(&mut self.rd);
         self.rd.clear();
         let frame = frame_res?;
         let result = frame.map(|frame| (frame, addr)); // frame -> (frame, addr)
-        println!("frame decoded from buffer");
         Ok(Async::Ready(result))
     }
 }
