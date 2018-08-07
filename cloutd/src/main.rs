@@ -26,15 +26,11 @@ extern crate pnet_sys;
 #[macro_use]
 extern crate nom;
 
-use tokio::reactor::Reactor;
-use tokio::executor::current_thread::{self,CurrentThread};
-
 use futures::Future;
-use futures::Async;
 use futures::Stream;
 
-use std::thread;
-use std::time::Duration;
+use tokio::prelude::*;
+use std::time::{Duration, Instant};
 
 mod nhrp;
 
@@ -92,10 +88,9 @@ fn main_mio() {
                     let mut buf = Vec::with_capacity(100);
 
                     match s.recv_from(buf.as_mut_slice(), &mut caddr) {
-                        Ok(n) => {
+                        Ok(_n) => {
                             let a = ::nhrp::socket::sockaddr_to_addr(&caddr, mem::size_of::<p::SockAddrStorage>());
                             println!("{:?}", a);
-                            println!("{:?}", buf);
                         },
                         Err(e) => {
                             println!("{:?}", e);
@@ -111,16 +106,13 @@ fn main_mio() {
 fn main_tokio() {
     let nhrpsock = nhrp::NhrpSocket::new().unwrap();
 
-    let mut f = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
+    let f: nhrp::NhrpFramed<nhrp::NhrpCodec> = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
 
-    loop {
-        match f.poll() {
-            Ok(Async::NotReady) => thread::sleep(Duration::from_millis(500)),
-            Ok(Async::Ready(n)) => println!("{:?}",n),
-            Err(e) => println!("{:?}", e),
-        }
-    }
+    let future = f.for_each(|frame| {println!("{:?}", frame); Ok(())}).map_err(|e| println!("{:?}", e));
 
+    let when = Instant::now() + Duration::from_secs(2);
+
+    tokio::run(future.deadline(when).map_err(|e| {println!("Timer ran out.")}));
 
 }
 
