@@ -41,7 +41,7 @@ impl NhrpSocket {
         match self.io.get_ref().send_to(buf, addr) {
             Ok(n) => Ok(n.into()),
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_write_ready();
+                self.io.clear_write_ready()?;
                 Ok(Async::NotReady)
             },
             Err(e) => Err(e)
@@ -58,7 +58,7 @@ impl NhrpSocket {
                 Ok((n, a.unwrap()).into())
             },
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                self.io.clear_read_ready(Ready::readable());
+                self.io.clear_read_ready(Ready::readable())?;
                 Ok(Async::NotReady)
             },
             Err(e) => Err(e)
