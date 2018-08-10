@@ -4,7 +4,7 @@ version = "0.7.0"
 authors = []
 
 [dependencies]
-#pnetlink = { path = "../pnetlink" }
+pnetlink = { path = "../pnetlink" }
 tokio = "0.1"
 tokio-codec = "0.1"
 tokio-current-thread = "0.1"

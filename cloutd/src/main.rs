@@ -26,6 +26,8 @@ extern crate pnet_sys;
 #[macro_use]
 extern crate nom;
 
+extern crate pnetlink;
+
 use futures::Future;
 use futures::Stream;
 
@@ -107,6 +109,10 @@ fn main_mio() {
 }
 
 fn main_tokio() {
+    use pnetlink::packet::route::addr::Scope;
+
+    let s = Scope::new(8u8);
+    println!("{:?}", s);
     let nhrpsock = nhrp::NhrpSocket::new().unwrap();
 
     let f: nhrp::NhrpFramed<nhrp::NhrpCodec> = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
