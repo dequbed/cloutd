@@ -31,88 +31,12 @@ extern crate pnetlink;
 use futures::Future;
 use futures::Stream;
 
-use tokio::prelude::*;
-use std::time::{Duration, Instant};
-use tokio::timer::Interval;
-
 use tokio::runtime::Runtime;
 
 mod nhrp;
+mod netlink;
 
-// 
-use std::mem;
-use mio::{Poll, Events, Token, Ready, PollOpt};
-use pnet_sys as p;
-//
-
-/*
- *fn main() {
- *    let r = Reactor::new().unwrap();
- *    let h = r.handle();
- *
- *    let s = nhrp::NhrpSocket::new_with_handle(&h).unwrap();
- *    println!("{:?}", &s);
- *    let f = nhrp::frame::NhrpFramed::new(s, nhrp::codec::NhrpCodec);
- *
- *
- *    let ft = f.for_each(|p| {
- *        println!("{:?}", p);
- *        Ok(())
- *    }).map_err(|e| println!("Error occured: {}", e));
- *
- *    println!("Starting up!");
- *    current_thread::block_on_all(lazy(|| {
- *
- *        current_thread::spawn(ft);
- *
- *        Ok::<_, ()>(())
- *    }));
- *    //tokio::runtime::run(ft);
- *    println!("Done?!");
- *}
- */
-
-const SERVER: Token = Token(0);
-
-fn main_mio() {
-    let poll = Poll::new().unwrap();
-    let s = nhrp::socket::NhrpRawSocket::new().unwrap();
-
-    poll.register(&s, SERVER, Ready::readable(), PollOpt::edge()).unwrap();
-
-    let mut events = Events::with_capacity(1024);
-
-    loop {
-        poll.poll(&mut events, None).unwrap();
-
-        for events in events.iter() {
-            match events.token() {
-                SERVER => {
-                    let mut caddr: p::SockAddrStorage = unsafe { mem::zeroed() };
-
-                    let mut buf = Vec::with_capacity(100);
-
-                    match s.recv_from(buf.as_mut_slice(), &mut caddr) {
-                        Ok(_n) => {
-                            let a = ::nhrp::socket::sockaddr_to_addr(&caddr, mem::size_of::<p::SockAddrStorage>());
-                            println!("{:?}", a);
-                        },
-                        Err(e) => {
-                            println!("{:?}", e);
-                        }
-                    }
-                },
-                _ => unreachable!()
-            }
-        }
-    }
-}
-
-fn main_tokio() {
-    use pnetlink::packet::route::addr::Scope;
-
-    let s = Scope::new(8u8);
-    println!("{:?}", s);
+fn main() {
     let nhrpsock = nhrp::NhrpSocket::new().unwrap();
 
     let f: nhrp::NhrpFramed<nhrp::NhrpCodec> = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
@@ -124,8 +48,4 @@ fn main_tokio() {
     rt.spawn(future);
 
     rt.shutdown_on_idle().wait().unwrap();
-}
-
-fn main() {
-    main_tokio()
 }
