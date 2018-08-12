@@ -28,6 +28,11 @@ extern crate nom;
 
 extern crate pnetlink;
 
+use tokio_codec::Decoder;
+
+use pnetlink::ptokio;
+use pnetlink::socket::NetlinkProtocol;
+
 use futures::Future;
 use futures::Stream;
 
@@ -37,15 +42,20 @@ mod nhrp;
 mod netlink;
 
 fn main() {
-    let nhrpsock = nhrp::NhrpSocket::new().unwrap();
-
-    let f: nhrp::NhrpFramed<nhrp::NhrpCodec> = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
-
-    let future = f.for_each(|frame| {println!("{:?}", frame); Ok(())}).map_err(|e| println!("{:?}", e));
-
     let mut rt = Runtime::new().unwrap();
 
+    let nhrpsock = nhrp::NhrpSocket::new().unwrap();
+    let nlsock = pnetlink::ptokio::NetlinkSocket::bind(NetlinkProtocol::Route, 4 | 2, rt.reactor()).unwrap();
+
+    let f: nhrp::NhrpFramed<nhrp::NhrpCodec> = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
+    let c = ptokio::NetlinkCodec {};
+    let n = c.framed(nlsock);
+
+    let future = f.for_each(|frame| {println!("{:?}", frame); Ok(())}).map_err(|e| println!("{:?}", e));
+    let nfuture = n.for_each(|frame| {println!("{:?}", frame); Ok(())}).map_err(|e| println!("{:?}", e));
+
     rt.spawn(future);
+    rt.spawn(nfuture);
 
     rt.shutdown_on_idle().wait().unwrap();
 }
