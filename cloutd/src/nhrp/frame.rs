@@ -65,8 +65,6 @@ impl<C: Encoder> Sink for NhrpFramed<C> {
     type SinkError = C::Error;
 
     fn start_send(&mut self, item: Self::SinkItem) -> StartSend<Self::SinkItem, Self::SinkError> {
-        println!("sending frame");
-
         if !self.flushed {
             match try!(self.poll_complete()) {
                 Async::Ready(()) => {},
@@ -78,7 +76,7 @@ impl<C: Encoder> Sink for NhrpFramed<C> {
         self.codec.encode(frame, &mut self.wr)?;
         self.out_addr = out_addr;
         self.flushed = false;
-        println!("frame encoded; length = {}", self.wr.len());
+        debug!("Frame encoded"; "length" => self.wr.len());
 
         Ok(AsyncSink::Ready)
     }
@@ -88,9 +86,9 @@ impl<C: Encoder> Sink for NhrpFramed<C> {
             return Ok(Async::Ready(()));
         }
 
-        println!("flushing frame; length = {}", self.wr.len());
+        trace!("Flushing frame"; "length" => self.wr.len());
         let n = try_ready!(self.socket.poll_send_to(&self.wr, &self.out_addr));
-        println!("written {}", n);
+        trace!("Written {} bytes", n);
 
         let wrote_all = n == self.wr.len();
         self.wr.clear();

@@ -14,12 +14,16 @@ tokio-codec = "0.1"
 tokio-current-thread = "0.1"
 tokio-reactor = "0.1"
 bytes = "0.4"
-log = "0.4"
 libc = "0.2"
 mio = "0.6.15"
 futures = "0.1"
 pnet_sys = "0.21"
 nom = "4.0"
+
+slog = { version = "2.3", features = ["max_level_trace"] }
+slog-term = "2.4"
+slog-async = "2.3"
+slog-scope = "4.0"
 
 [profile.release]
 opt-level = "s"

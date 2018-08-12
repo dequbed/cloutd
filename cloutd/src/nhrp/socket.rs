@@ -115,11 +115,8 @@ impl NhrpRawSocket {
 
         let cbuf = buf.as_ptr();
         let len = buf.len();
-        println!("recvfrom {}", len);
         let flags = 0;
         let res = unsafe { c::recvfrom(self.fd, cbuf as *mut c::c_void, len, flags, caddr as *mut c::sockaddr, &mut caddrlen) };
-
-        println!("Received {} bytes", res);
 
         if res < 0 {
             return Err(io::Error::last_os_error())
@@ -161,7 +158,6 @@ pub fn sockaddr_to_addr(storage: &p::SockAddrStorage, len: usize) -> io::Result<
         c::PF_PACKET => {
             assert!(len as usize >= mem::size_of::<c::sockaddr_ll>());
             let storage: &c::sockaddr_ll = unsafe { mem::transmute(storage) };
-            println!("sll_addr: {:?}, sll_protocol: {:#06X}, sll_hatype: {:#06X}, sll_pkttype: {:#06X}", storage.sll_addr, u16::from_be(storage.sll_protocol), u16::from_be(storage.sll_hatype), storage.sll_pkttype);
             if storage.sll_protocol == 0x2001u16.to_be() {
 
                 // FIXME: Find a better way to figure out the underlying address type

@@ -21,7 +21,11 @@ extern crate tokio_current_thread;
 extern crate bytes;
 
 #[macro_use]
-extern crate log;
+extern crate slog;
+extern crate slog_term;
+extern crate slog_async;
+#[macro_use]
+extern crate slog_scope;
 
 extern crate mio;
 #[macro_use]
@@ -33,6 +37,8 @@ extern crate pnet_sys;
 extern crate nom;
 
 extern crate pnetlink;
+
+use slog::Drain;
 
 use tokio_codec::Decoder;
 
@@ -47,21 +53,66 @@ use tokio::runtime::Runtime;
 mod nhrp;
 mod netlink;
 
-fn main() {
-    let mut rt = Runtime::new().unwrap();
+fn mainw() {
+    let decorator = slog_term::TermDecorator::new().build();
+    let drain = slog_term::FullFormat::new(decorator).build().fuse();
+    let drain = slog_async::Async::new(drain).build().fuse();
+    let log = slog::Logger::root(drain, o!());
 
-    let nhrpsock = nhrp::NhrpSocket::new().unwrap();
-    let nlsock = pnetlink::ptokio::NetlinkSocket::bind(NetlinkProtocol::Route, 4 | 2, rt.reactor()).unwrap();
+    let _logguard = slog_scope::set_global_logger(log);
+
+    info!("Starting up.");
+
+    trace!("Constructing eventloop...");
+    let mut rt = match Runtime::new() {
+        Ok(r) => {
+            trace!("Constructed eventloop.");
+            r
+        },
+        Err(e) => {
+            error!("Failed to construct eventloop"; "error" => %e);
+            return;
+        }
+    };
+
+    trace!("Opening NHRP socket...");
+    let nhrpsock = match nhrp::NhrpSocket::new() {
+        Ok(s) => {
+            trace!("Opened NHRP socket.");
+            s
+        },
+        Err(e) => {
+            error!("Failed to open NHRP socket"; "error" => %e);
+            return;
+        }
+    };
+    trace!("Opening Netlink socket...");
+    let nlsock = match pnetlink::ptokio::NetlinkSocket::bind(NetlinkProtocol::Route, 4 | 2, rt.reactor()) {
+        Ok(s) => {
+            trace!("Opened Netlink socket.");
+            s
+        },
+        Err(e) => {
+            error!("Failed to open Netlink socket"; "error" => %e);
+            return;
+        }
+    };
 
     let f: nhrp::NhrpFramed<nhrp::NhrpCodec> = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
     let c = ptokio::NetlinkCodec {};
     let n = c.framed(nlsock);
 
-    let future = f.for_each(|frame| {println!("{:?}", frame); Ok(())}).map_err(|e| println!("{:?}", e));
-    let nfuture = n.for_each(|frame| {println!("{:?}", frame); Ok(())}).map_err(|e| println!("{:?}", e));
+    let future = f.for_each(|frame| {trace!("{:?}", frame); Ok(())}).map_err(|e| error!("{:?}", e));
+    let nfuture = n.for_each(|frame| {trace!("{:?}", frame); Ok(())}).map_err(|e| error!("{:?}", e));
 
+    trace!("Spawning futures...");
     rt.spawn(future);
     rt.spawn(nfuture);
+    trace!("Spawned futures.");
 
     rt.shutdown_on_idle().wait().unwrap();
+}
+
+fn main() {
+    mainw()
 }
