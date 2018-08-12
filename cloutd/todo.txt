@@ -1,0 +1,6 @@
+(A) 2018-08-12 Implement Netlink stuff
+(B) 2018-08-12 Glue together the futures so that cloutd actually reacts to messages
+(B) 2018-08-12 Implement NHRP sending frames
+(C) 2018-08-12 Make cloutd send NHRP messages, i.e. register etc.
+(E) 2018-08-12 Extract NHRP parsing/writing into a seperate crate
+(E) 2018-08-12 Send all updates to pnetlink upstream
