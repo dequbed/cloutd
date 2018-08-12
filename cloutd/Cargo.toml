@@ -2,6 +2,7 @@
 name = "cloutd"
 version = "0.7.0"
 authors = []
+license = "MPL-2.0"
 
 [dependencies]
 pnetlink = { path = "../pnetlink" }
