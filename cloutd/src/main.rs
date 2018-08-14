@@ -44,9 +44,13 @@ use tokio_codec::Decoder;
 
 use pnetlink::ptokio;
 use pnetlink::socket::NetlinkProtocol;
+use pnetlink::ptokio::NetlinkRequestBuilder;
+use pnetlink::packet::netlink::NetlinkMsgFlags;
+use pnetlink::packet::route::MutableIfInfoPacket;
 
 use futures::Future;
 use futures::Stream;
+use futures::Sink;
 
 use tokio::runtime::Runtime;
 
@@ -102,8 +106,18 @@ fn mainw() {
     let c = ptokio::NetlinkCodec {};
     let n = c.framed(nlsock);
 
+    let mut buf = vec![0; MutableIfInfoPacket::minimum_packet_size()];
+    let req = NetlinkRequestBuilder::new(26, NetlinkMsgFlags::NLM_F_DUMP)
+        .append({
+            let mut ifinfo = MutableIfInfoPacket::new(&mut buf).unwrap();
+            ifinfo.set_family(0);
+            ifinfo
+        })
+        .build();
+    let nfuture = n.send(req).and_then(|stream| stream.for_each(|frame| {trace!("{:?}", pnetlink::packet::route::route::Route::dump_route(frame)); Ok(())})).map_err(|e| error!("{:?}", e));
+
     let future = f.for_each(|frame| {trace!("{:?}", frame); Ok(())}).map_err(|e| error!("{:?}", e));
-    let nfuture = n.for_each(|frame| {trace!("{:?}", frame); Ok(())}).map_err(|e| error!("{:?}", e));
+    //let nfuture = n.for_each(|frame| {trace!("{:?}", frame); Ok(())}).map_err(|e| error!("{:?}", e));
 
     trace!("Spawning futures...");
     rt.spawn(future);
