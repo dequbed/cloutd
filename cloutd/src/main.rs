@@ -36,6 +36,9 @@ extern crate pnet_sys;
 #[macro_use]
 extern crate nom;
 
+extern crate rtnetlink;
+extern crate netlink_socket;
+
 use slog::Drain;
 
 use tokio_codec::Decoder;
