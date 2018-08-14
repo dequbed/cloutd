@@ -1,3 +1,6 @@
 [submodule "pnetlink"]
 	path = pnetlink
 	url = plabsrepo:dean/pnetlink.git
+[submodule "netlink"]
+	path = netlink
+	url = https://github.com/little-dude/netlink.git
