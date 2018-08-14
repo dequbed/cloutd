@@ -36,17 +36,9 @@ extern crate pnet_sys;
 #[macro_use]
 extern crate nom;
 
-extern crate pnetlink;
-
 use slog::Drain;
 
 use tokio_codec::Decoder;
-
-use pnetlink::ptokio;
-use pnetlink::socket::NetlinkProtocol;
-use pnetlink::ptokio::NetlinkRequestBuilder;
-use pnetlink::packet::netlink::NetlinkMsgFlags;
-use pnetlink::packet::route::MutableIfInfoPacket;
 
 use futures::Future;
 use futures::Stream;
@@ -90,38 +82,13 @@ fn mainw() {
             return;
         }
     };
-    trace!("Opening Netlink socket...");
-    let nlsock = match pnetlink::ptokio::NetlinkSocket::bind(NetlinkProtocol::Route, 4 | 2, rt.reactor()) {
-        Ok(s) => {
-            trace!("Opened Netlink socket.");
-            s
-        },
-        Err(e) => {
-            error!("Failed to open Netlink socket"; "error" => %e);
-            return;
-        }
-    };
 
     let f: nhrp::NhrpFramed<nhrp::NhrpCodec> = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
-    let c = ptokio::NetlinkCodec {};
-    let n = c.framed(nlsock);
-
-    let mut buf = vec![0; MutableIfInfoPacket::minimum_packet_size()];
-    let req = NetlinkRequestBuilder::new(26, NetlinkMsgFlags::NLM_F_DUMP)
-        .append({
-            let mut ifinfo = MutableIfInfoPacket::new(&mut buf).unwrap();
-            ifinfo.set_family(0);
-            ifinfo
-        })
-        .build();
-    let nfuture = n.send(req).and_then(|stream| stream.for_each(|frame| {trace!("{:?}", pnetlink::packet::route::route::Route::dump_route(frame)); Ok(())})).map_err(|e| error!("{:?}", e));
 
     let future = f.for_each(|frame| {trace!("{:?}", frame); Ok(())}).map_err(|e| error!("{:?}", e));
-    //let nfuture = n.for_each(|frame| {trace!("{:?}", frame); Ok(())}).map_err(|e| error!("{:?}", e));
 
     trace!("Spawning futures...");
     rt.spawn(future);
-    rt.spawn(nfuture);
     trace!("Spawned futures.");
 
     rt.shutdown_on_idle().wait().unwrap();

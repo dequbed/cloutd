@@ -8,7 +8,6 @@ categories = ["network-programming"]
 keywords = ["nhrp", "vpn"]
 
 [dependencies]
-pnetlink = { path = "../pnetlink" }
 tokio = "0.1"
 tokio-codec = "0.1"
 tokio-current-thread = "0.1"
