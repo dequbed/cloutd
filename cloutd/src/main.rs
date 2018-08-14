@@ -49,6 +49,10 @@ use futures::Sink;
 
 use tokio::runtime::Runtime;
 
+use netlink_socket::{Protocol, SocketAddr, TokioSocket};
+use rtnetlink::constants::{NLM_F_DUMP, NLM_F_REQUEST};
+use rtnetlink::{LinkHeader, LinkMessage, NetlinkCodec, NetlinkFlags, NetlinkFramed, NetlinkMessage, RtnlMessage};
+
 mod nhrp;
 mod netlink;
 
@@ -85,13 +89,58 @@ fn mainw() {
             return;
         }
     };
+    trace!("Opening Netlink socket...");
+    let nlsock = {
+        let mut socket = match TokioSocket::new(Protocol::Route) {
+            Ok(s) => {
+                trace!("Created Netlink socket.");
+                s
+            },
+            Err(e) => {
+                error!("Failed to create Netlink socket"; "error" => %e);
+                return;
+            },
+        };
+        let _port = match socket.bind_auto() {
+            Ok(s) => {
+                let port = s.port_number();
+                trace!("Bound to port {}.", port);
+                port
+            },
+            Err(e) => {
+                error!("Failed to bind socket"; "error" => %e);
+                return;
+            },
+        };
+        match socket.connect(&SocketAddr::new(0, 0)) {
+            Ok(_) => socket,
+            Err(e) => {
+                error!("Failed to connect socket"; "error" => %e);
+                return;
+            }
+        }
+    };
+
+    let nlstream = NetlinkFramed::new(nlsock, NetlinkCodec::<NetlinkMessage>::new());
+
+    let mut nlrequest: NetlinkMessage = RtnlMessage::GetLink(LinkMessage::from_parts(LinkHeader::new(), vec![])).into();
+    nlrequest
+        .header_mut()
+        .set_flags(NetlinkFlags::from(NLM_F_DUMP | NLM_F_REQUEST))
+        .set_sequence_number(1);
+    nlrequest.finalize();
+    let mut buf = vec![0; nlrequest.header().length() as usize];
+    nlrequest.to_bytes(&mut buf[..]).unwrap();
+    let nlreply = nlstream.send((nlrequest, SocketAddr::new(0,0))).wait().unwrap();
 
     let f: nhrp::NhrpFramed<nhrp::NhrpCodec> = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
 
     let future = f.for_each(|frame| {trace!("{:?}", frame); Ok(())}).map_err(|e| error!("{:?}", e));
+    let nlfuture = nlreply.for_each(|frame| {trace!("{:?}", frame.0); Ok(())}).map_err(|e| error!("{:?}", e));
 
     trace!("Spawning futures...");
     rt.spawn(future);
+    rt.spawn(nlfuture);
     trace!("Spawned futures.");
 
     rt.shutdown_on_idle().wait().unwrap();
