@@ -19,8 +19,8 @@ futures = "0.1"
 pnet_sys = "0.21"
 nom = "4.0"
 
-rtnetlink = { version = "0.0.3", features = ["tokio_support"] }
-netlink-socket = { version = "0.0.2", features = ["tokio_support"] }
+rtnetlink = { path = "../netlink/rtnetlink", features = ["tokio_support"] }
+netlink-socket = { path = "../netlink/netlink-socket", features = ["tokio_support"] }
 
 slog = { version = "2.3", features = ["max_level_trace"] }
 slog-term = "2.4"

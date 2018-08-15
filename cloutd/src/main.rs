@@ -123,14 +123,8 @@ fn mainw() {
 
     let nlstream = NetlinkFramed::new(nlsock, NetlinkCodec::<NetlinkMessage>::new());
 
-    let mut nlrequest: NetlinkMessage = RtnlMessage::GetLink(LinkMessage::from_parts(LinkHeader::new(), vec![])).into();
-    nlrequest
-        .header_mut()
-        .set_flags(NetlinkFlags::from(NLM_F_DUMP | NLM_F_REQUEST))
-        .set_sequence_number(1);
-    nlrequest.finalize();
-    let mut buf = vec![0; nlrequest.header().length() as usize];
-    nlrequest.to_bytes(&mut buf[..]).unwrap();
+    let nlrequest: NetlinkMessage = pkt();
+    println!("{:?}", nlrequest);
     let nlreply = nlstream.send((nlrequest, SocketAddr::new(0,0))).wait().unwrap();
 
     let f: nhrp::NhrpFramed<nhrp::NhrpCodec> = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
@@ -148,4 +142,24 @@ fn mainw() {
 
 fn main() {
     mainw()
+}
+
+//
+// FIXME: If it's stupid but it works it's still stupid and you're lucky.
+//
+static PKT: [u8; 72] = [
+    0x48, 0x00, 0x00, 0x00, // Length = 72
+    0x43, 0x00, // Message type = Set Neighbour Table
+    0x01, 0x01, // Flags = REQUEST | REPLACE
+    0x26, 0xf4, 0x73, 0x5b, // Sequence
+    0x00, 0x00, 0x00, 0x00, // Port ID
+    // Payload:
+    0x02, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x01, 0x00, 0x61, 0x72, 0x70, 0x5f, 0x63, 0x61, 0x63,
+    0x68, 0x65, 0x00, 0x00, 0x00, 0x24, 0x00, 0x06, 0x00, 0x08, 0x00, 0x01, 0x00, 0x0f, 0x00,
+    0x00, 0x00, 0x08, 0x00, 0x09, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08, 0x00, 0x0b, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x08, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,
+];
+fn pkt() -> NetlinkMessage {
+    use rtnetlink::{NetlinkBuffer, Parseable};
+    NetlinkBuffer::new_checked(&&PKT[..]).unwrap().parse().unwrap()
 }
