@@ -14,14 +14,11 @@ pub(crate) type Rest = RangeFrom<usize>;
 pub(crate) type Index = usize;
 
 pub mod socket;
-pub mod recv_nhrp;
-pub mod send_nhrp;
-pub mod frame;
-pub mod protocol;
-pub mod codec;
-pub mod buffer;
-
 pub use self::socket::*;
-pub use self::codec::NhrpCodec;
-pub use self::frame::NhrpFramed;
-pub use self::recv_nhrp::*;
+pub mod buffer;
+pub use self::buffer::*;
+pub mod header;
+pub use self::header::*;
+
+pub use self::mandatory::*;
+pub mod mandatory;
