@@ -103,18 +103,24 @@ impl<T: AsRef<[u8]>> CieBuffer<T> {
 impl<'a, T: AsRef<[u8]> + ?Sized> CieBuffer<&'a T> {
     // FIXME: Also actually context-specific
     pub fn cli_nbma_addr(&self) -> &'a [u8] {
-        let range = self.cli_nbma_addr_offset()..self.cli_nbma_addr_tl() as usize;
+        let offset = self.cli_nbma_addr_offset();
+        let len = self.cli_nbma_addr_tl() as usize;
+        let range = offset..(offset+len);
         let data = self.buffer.as_ref();
         &data[range]
     }
     pub fn cli_nbma_saddr(&self) -> &'a [u8] {
-        let range = self.cli_nbma_saddr_offset()..self.cli_nbma_saddr_tl() as usize;
+        let offset = self.cli_nbma_saddr_offset();
+        let len = self.cli_nbma_saddr_tl() as usize;
+        let range = offset..(offset+len);
         let data = self.buffer.as_ref();
         &data[range]
     }
 
     pub fn cli_proto_addr(&self) -> &'a [u8] {
-        let range = self.cli_proto_addr_offset()..self.cli_proto_addr_len() as usize;
+        let offset = self.cli_proto_addr_offset();
+        let len = self.cli_proto_addr_len() as usize;
+        let range = offset..(offset+len);
         let data = self.buffer.as_ref();
         &data[range]
     }
@@ -123,18 +129,24 @@ impl<'a, T: AsRef<[u8]> + ?Sized> CieBuffer<&'a T> {
 impl<'a, T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> CieBuffer<&'a mut T> {
     // FIXME: Also actually context-specific
     pub fn cli_nbma_addr_mut(&mut self) -> &mut [u8] {
-        let range = self.cli_nbma_addr_offset()..self.cli_nbma_addr_tl() as usize;
+        let offset = self.cli_nbma_addr_offset();
+        let len = self.cli_nbma_addr_tl() as usize;
+        let range = offset..(offset+len);
         let data = self.buffer.as_mut();
         &mut data[range]
     }
     pub fn cli_nbma_saddr_mut(&mut self) -> &mut [u8] {
-        let range = self.cli_nbma_saddr_offset()..self.cli_nbma_saddr_tl() as usize;
+        let offset = self.cli_nbma_saddr_offset();
+        let len = self.cli_nbma_saddr_tl() as usize;
+        let range = offset..(offset+len);
         let data = self.buffer.as_mut();
         &mut data[range]
     }
 
     pub fn cli_proto_addr_mut(&mut self) -> &mut [u8] {
-        let range = self.cli_proto_addr_offset()..self.cli_proto_addr_len() as usize;
+        let offset = self.cli_proto_addr_offset();
+        let len = self.cli_proto_addr_len() as usize;
+        let range = offset..(offset+len);
         let data = self.buffer.as_mut();
         &mut data[range]
     }
@@ -181,5 +193,43 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> CieBuffer<T> {
     pub fn set_preference(&mut self, value: u8) {
         let data = self.buffer.as_mut();
         data[PREFERENCE] = value
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CieIterator<T> {
+    position: usize,
+    buffer: T,
+}
+
+impl<T> CieIterator<T> {
+    pub fn new(buffer: T) -> Self {
+        CieIterator {
+            position: 0,
+            buffer: buffer
+        }
+    }
+}
+
+impl<'a, T: AsRef<[u8]> + ?Sized + 'a> Iterator for CieIterator<&'a T> {
+    type Item = Result<CieBuffer<&'a [u8]>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // We already exhausted the buffer or got an invalid/empty one.
+        if self.position >= self.buffer.as_ref().len() {
+            return None
+        }
+
+        match CieBuffer::new_checked(&self.buffer.as_ref()[self.position..]) {
+            Ok(ciebuffer) => {
+                self.position += ciebuffer.length() as usize;
+                Some(Ok(ciebuffer))
+            },
+            Err(e) => {
+                // Fuse the iterator. We currently really can't recover from an invalid CIE.
+                self.position = self.buffer.as_ref().len();
+                Some(Err(e))
+            }
+        }
     }
 }
