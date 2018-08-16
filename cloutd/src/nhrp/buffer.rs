@@ -13,9 +13,7 @@ const CHECKSUM: Field = 12..14;
 const EXTOFFSET: Field = 14..16;
 const VERSION: Index = 16;
 const OPTYPE: Index = 17;
-const SHTL: Index = 18;
-const SSTL: Index = 19;
-const PAYLOAD: Rest = 20..;
+const PAYLOAD: Rest = 18..;
 
 pub const FIXED_HEADER_LEN: usize = PAYLOAD.start;
 
@@ -99,16 +97,6 @@ impl<T: AsRef<[u8]>> NhrpBuffer<T> {
         let data = self.buffer.as_ref();
         data[OPTYPE].into()
     }
-
-    pub fn shtl(&self) -> AddrTL {
-        let data = self.buffer.as_ref();
-        data[SHTL].into()
-    }
-
-    pub fn sstl(&self) -> AddrTL {
-        let data = self.buffer.as_ref();
-        data[SSTL].into()
-    }
 }
 
 impl<'a, T: AsRef<[u8]> + ?Sized> NhrpBuffer<&'a T> {
@@ -171,15 +159,5 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> NhrpBuffer<T> {
     pub fn set_optype(&mut self, value: NhrpOp) {
         let data = self.buffer.as_mut();
         data[OPTYPE] = value.into()
-    }
-
-    pub fn set_shtl(&mut self, value: AddrTL) {
-        let data = self.buffer.as_mut();
-        data[SHTL] = value.into()
-    }
-
-    pub fn set_sstl(&mut self, value: AddrTL) {
-        let data = self.buffer.as_mut();
-        data[SSTL] = value.into()
     }
 }

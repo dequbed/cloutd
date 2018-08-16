@@ -3,10 +3,10 @@ use std::io;
 
 use std::fmt::{self, Display};
 
-pub(crate) type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
-pub(crate) enum Error {
+pub enum Error {
     Io(io::Error),
     Truncated,
 }

@@ -43,32 +43,6 @@ impl From<NhrpOp> for u8 {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub enum AddrTL {
-    NSAP(u8),
-    E164(u8),
-}
-impl From<u8> for AddrTL {
-    fn from(value: u8) -> AddrTL {
-        use self::AddrTL::*;
-        if value & 64 == 64 {
-            E164(value ^ 64) // Unset the 6th bit so the contained u8 is the length
-        } else {
-            NSAP(value)
-        }
-    }
-}
-impl From<AddrTL> for u8 {
-    // FIXME: Technically only valid for values <64
-    fn from(value: AddrTL) -> u8 {
-        use self::AddrTL::*;
-        match value {
-            E164(v) => v | 64,
-            NSAP(v) => v
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct NhrpHeader {
     afn: u16,
@@ -80,8 +54,6 @@ pub struct NhrpHeader {
     extoffset: u16,
     version: u8,
     optype: NhrpOp,
-    shtl: AddrTL,
-    sstl: AddrTL,
 }
 
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpHeader> for NhrpBuffer<&'a T> {
@@ -96,8 +68,6 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpHeader> for NhrpBuffer<&'a T> {
             extoffset: self.extoffset(),
             version: self.version(),
             optype: self.optype(),
-            shtl: self.shtl(),
-            sstl: self.sstl(),
         })
     }
 }
@@ -118,7 +88,5 @@ impl Emitable for NhrpHeader {
         buffer.set_extoffset(self.extoffset);
         buffer.set_version(self.version);
         buffer.set_optype(self.optype);
-        buffer.set_shtl(self.shtl);
-        buffer.set_sstl(self.sstl);
     }
 }

@@ -19,6 +19,8 @@ pub mod buffer;
 pub use self::buffer::*;
 pub mod header;
 pub use self::header::*;
+pub mod cie;
+pub use self::cie::*;
 
 pub use self::mandatory::*;
 pub mod mandatory;

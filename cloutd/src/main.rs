@@ -54,7 +54,7 @@ use tokio::runtime::Runtime;
 
 use netlink_socket::{Protocol, SocketAddr, TokioSocket};
 use rtnetlink::constants::{NLM_F_DUMP, NLM_F_REQUEST};
-use rtnetlink::{LinkHeader, LinkMessage, NetlinkCodec, NetlinkFlags, NetlinkFramed, NetlinkMessage, RtnlMessage};
+use rtnetlink::{NetlinkCodec, NetlinkFlags, NetlinkFramed, NetlinkMessage, RtnlMessage};
 
 mod nhrp;
 use nhrp::*;
@@ -62,6 +62,9 @@ mod netlink;
 
 mod error;
 use error::*;
+
+mod traits;
+use traits::*;
 
 fn mainw() {
     let decorator = slog_term::TermDecorator::new().build();
@@ -123,23 +126,25 @@ fn mainw() {
         socket
     };
 
-    let (nlsink,nlstream) = NetlinkFramed::new(nlsock, NetlinkCodec::<NetlinkMessage>::new()).split();
+    //let (nlsink,nlstream) = NetlinkFramed::new(nlsock, NetlinkCodec::<NetlinkMessage>::new()).split();
 
-    let nlrequest: NetlinkMessage = pkt();
-    let sendfut = nlsink.send((nlrequest, SocketAddr::new(0,0))).and_then(|_| Ok(())).map_err(|e| error!("{:?}", e));
-
-    let f: nhrp::NhrpFramed<nhrp::NhrpCodec> = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
-
-    let future = f.for_each(|frame| {trace!("{:?}", frame); Ok(())}).map_err(|e| error!("{:?}", e));
-    let nlfuture = nlstream.for_each(|frame| {trace!("{:?}", frame.0); Ok(())}).map_err(|e| error!("{:?}", e));
-
-    trace!("Spawning futures...");
-    rt.spawn(nlfuture);
-    rt.spawn(future);
-    rt.spawn(sendfut);
-    trace!("Spawned futures.");
-
-    rt.shutdown_on_idle().wait().unwrap();
+/*
+ *    let nlrequest: NetlinkMessage = pkt();
+ *    let sendfut = nlsink.send((nlrequest, SocketAddr::new(0,0))).and_then(|_| Ok(())).map_err(|e| error!("{:?}", e));
+ *
+ *    let f: nhrp::NhrpFramed<nhrp::NhrpCodec> = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
+ *
+ *    let future = f.for_each(|frame| {trace!("{:?}", frame); Ok(())}).map_err(|e| error!("{:?}", e));
+ *    let nlfuture = nlstream.for_each(|frame| {trace!("{:?}", frame.0); Ok(())}).map_err(|e| error!("{:?}", e));
+ *
+ *    trace!("Spawning futures...");
+ *    rt.spawn(nlfuture);
+ *    rt.spawn(future);
+ *    rt.spawn(sendfut);
+ *    trace!("Spawned futures.");
+ *
+ *    rt.shutdown_on_idle().wait().unwrap();
+ */
 }
 
 fn main() {
