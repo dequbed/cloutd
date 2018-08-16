@@ -1,8 +1,7 @@
-use super::{NhrpBuffer, NhrpHeader, NhrpMandatory, ClientInformationEntry};
+use super::{NhrpBuffer, NhrpHeader, NhrpMessage};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct NhrpMessage {
-    pub fixed: NhrpHeader,
-    pub mandatory: NhrpMandatory,
-    pub cies: Vec<ClientInformationEntry>,
+    pub header: NhrpHeader,
+    pub message: NhrpMessage,
 }
