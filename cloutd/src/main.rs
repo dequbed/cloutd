@@ -112,29 +112,24 @@ fn mainw() {
                 return;
             },
         };
-        match socket.connect(&SocketAddr::new(0, 0)) {
-            Ok(_) => socket,
-            Err(e) => {
-                error!("Failed to connect socket"; "error" => %e);
-                return;
-            }
-        }
+
+        socket
     };
 
-    let nlstream = NetlinkFramed::new(nlsock, NetlinkCodec::<NetlinkMessage>::new());
+    let (nlsink,nlstream) = NetlinkFramed::new(nlsock, NetlinkCodec::<NetlinkMessage>::new()).split();
 
     let nlrequest: NetlinkMessage = pkt();
-    println!("{:?}", nlrequest);
-    let nlreply = nlstream.send((nlrequest, SocketAddr::new(0,0))).wait().unwrap();
+    let sendfut = nlsink.send((nlrequest, SocketAddr::new(0,0))).and_then(|_| Ok(())).map_err(|e| error!("{:?}", e));
 
     let f: nhrp::NhrpFramed<nhrp::NhrpCodec> = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec);
 
     let future = f.for_each(|frame| {trace!("{:?}", frame); Ok(())}).map_err(|e| error!("{:?}", e));
-    let nlfuture = nlreply.for_each(|frame| {trace!("{:?}", frame.0); Ok(())}).map_err(|e| error!("{:?}", e));
+    let nlfuture = nlstream.for_each(|frame| {trace!("{:?}", frame.0); Ok(())}).map_err(|e| error!("{:?}", e));
 
     trace!("Spawning futures...");
-    rt.spawn(future);
     rt.spawn(nlfuture);
+    rt.spawn(future);
+    rt.spawn(sendfut);
     trace!("Spawned futures.");
 
     rt.shutdown_on_idle().wait().unwrap();
@@ -155,11 +150,30 @@ static PKT: [u8; 72] = [
     0x00, 0x00, 0x00, 0x00, // Port ID
     // Payload:
     0x02, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x01, 0x00, 0x61, 0x72, 0x70, 0x5f, 0x63, 0x61, 0x63,
-    0x68, 0x65, 0x00, 0x00, 0x00, 0x24, 0x00, 0x06, 0x00, 0x08, 0x00, 0x01, 0x00, 0x0f, 0x00,
-    0x00, 0x00, 0x08, 0x00, 0x09, 0x00, 0x01, 0x00, 0x00, 0x00, 0x08, 0x00, 0x0b, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x08, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x68, 0x65, 0x00, // "arp-cache"
+    0x00, 0x00, // Padding
+    0x24, 0x00, 0x06, 0x00, // Flags, 36 bytes of them.
+        0x08, 0x00, 0x01, 0x00, 0x06, 0x00, 0x00, 0x00, // IFID = 6
+        0x08, 0x00, 0x09, 0x00, 0x01, 0x00, 0x00, 0x00, // APP_PROBES = 1
+        0x08, 0x00, 0x0b, 0x00, 0x00, 0x00, 0x00, 0x00, // MCAST_PROBES = 0
+        0x08, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, // UCAST_PROBES = 0
 ];
 fn pkt() -> NetlinkMessage {
     use rtnetlink::{NetlinkBuffer, Parseable};
     NetlinkBuffer::new_checked(&&PKT[..]).unwrap().parse().unwrap()
+}
+
+extern "C" {
+    fn if_nametoindex(input: *const libc::c_char) -> libc::c_int;
+}
+
+fn if_by_name(name: &str) -> Option<i32> {
+    use std::ffi::CStr;
+    let cname = CStr::from_bytes_with_nul(b"gre0\0").unwrap();
+    let r = unsafe { if_nametoindex(cname.as_ptr()) };
+    if r == 0 {
+        return None;
+    } else {
+        return Some(r as i32);
+    }
 }
