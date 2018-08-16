@@ -56,6 +56,16 @@ pub struct NhrpHeader {
     optype: NhrpOp,
 }
 
+impl NhrpHeader {
+    pub fn length(&self) -> u16 {
+        self.length
+    }
+
+    pub fn optype(&self) -> NhrpOp {
+        self.optype
+    }
+}
+
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpHeader> for NhrpBuffer<&'a T> {
     fn parse(&self) -> Result<NhrpHeader> {
         Ok(NhrpHeader {

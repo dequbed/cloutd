@@ -28,18 +28,6 @@ impl From<AddrTL> for u8 {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum NhrpMandatory {
-    ResolutionRequest(CommonHeader),
-    ResolutionReply(CommonHeader),
-    RegistrationRequest(CommonHeader),
-    RegistrationReply(CommonHeader),
-    PurgeRequest(CommonHeader),
-    PurgeReply(CommonHeader),
-    ErrorIndication(ErrorHeader),
-    Other(Vec<u8>),
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CommonHeader {
     flags: u16,
     request_id: u32,

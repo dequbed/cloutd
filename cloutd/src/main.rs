@@ -67,64 +67,69 @@ mod traits;
 use traits::*;
 
 fn mainw() {
-    let decorator = slog_term::TermDecorator::new().build();
-    let drain = slog_term::FullFormat::new(decorator).build().fuse();
-    let drain = slog_async::Async::new(drain).build().fuse();
-    let log = slog::Logger::root(drain, o!());
+/*
+ *    let decorator = slog_term::TermDecorator::new().build();
+ *    let drain = slog_term::FullFormat::new(decorator).build().fuse();
+ *    let drain = slog_async::Async::new(drain).build().fuse();
+ *    let log = slog::Logger::root(drain, o!());
+ *
+ *    let _logguard = slog_scope::set_global_logger(log);
+ *
+ *    info!("Starting up.");
+ *
+ *    trace!("Constructing eventloop...");
+ *    let mut rt = match Runtime::new() {
+ *        Ok(r) => {
+ *            trace!("Constructed eventloop.");
+ *            r
+ *        },
+ *        Err(e) => {
+ *            error!("Failed to construct eventloop"; "error" => %e);
+ *            return;
+ *        }
+ *    };
+ *
+ *    trace!("Opening NHRP socket...");
+ *    let nhrpsock = match nhrp::NhrpSocket::new() {
+ *        Ok(s) => {
+ *            trace!("Opened NHRP socket.");
+ *            s
+ *        },
+ *        Err(e) => {
+ *            error!("Failed to open NHRP socket"; "error" => %e);
+ *            return;
+ *        }
+ *    };
+ *    trace!("Opening Netlink socket...");
+ *    let nlsock = {
+ *        let mut socket = match TokioSocket::new(Protocol::Route) {
+ *            Ok(s) => {
+ *                trace!("Created Netlink socket.");
+ *                s
+ *            },
+ *            Err(e) => {
+ *                error!("Failed to create Netlink socket"; "error" => %e);
+ *                return;
+ *            },
+ *        };
+ *        let _port = match socket.bind_auto() {
+ *            Ok(s) => {
+ *                let port = s.port_number();
+ *                trace!("Bound to port {}.", port);
+ *                port
+ *            },
+ *            Err(e) => {
+ *                error!("Failed to bind socket"; "error" => %e);
+ *                return;
+ *            },
+ *        };
+ *
+ *        socket
+ *    };
+ */
 
-    let _logguard = slog_scope::set_global_logger(log);
-
-    info!("Starting up.");
-
-    trace!("Constructing eventloop...");
-    let mut rt = match Runtime::new() {
-        Ok(r) => {
-            trace!("Constructed eventloop.");
-            r
-        },
-        Err(e) => {
-            error!("Failed to construct eventloop"; "error" => %e);
-            return;
-        }
-    };
-
-    trace!("Opening NHRP socket...");
-    let nhrpsock = match nhrp::NhrpSocket::new() {
-        Ok(s) => {
-            trace!("Opened NHRP socket.");
-            s
-        },
-        Err(e) => {
-            error!("Failed to open NHRP socket"; "error" => %e);
-            return;
-        }
-    };
-    trace!("Opening Netlink socket...");
-    let nlsock = {
-        let mut socket = match TokioSocket::new(Protocol::Route) {
-            Ok(s) => {
-                trace!("Created Netlink socket.");
-                s
-            },
-            Err(e) => {
-                error!("Failed to create Netlink socket"; "error" => %e);
-                return;
-            },
-        };
-        let _port = match socket.bind_auto() {
-            Ok(s) => {
-                let port = s.port_number();
-                trace!("Bound to port {}.", port);
-                port
-            },
-            Err(e) => {
-                error!("Failed to bind socket"; "error" => %e);
-                return;
-            },
-        };
-
-        socket
-    };
+    let p: NhrpMessage = NhrpBuffer::new_checked(&NHRPKT[..]).unwrap().parse().unwrap();
+    println!("{:?}", p);
 
     //let (nlsink,nlstream) = NetlinkFramed::new(nlsock, NetlinkCodec::<NetlinkMessage>::new()).split();
 
@@ -174,6 +179,15 @@ fn pkt() -> NetlinkMessage {
     use rtnetlink::{NetlinkBuffer, Parseable};
     NetlinkBuffer::new_checked(&&PKT[..]).unwrap().parse().unwrap()
 }
+
+static NHRPKT: [u8; 92] = [
+    0x00, 0x01, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x5c, 0xd6, 0x74, 0x00, 0x34,
+    0x01, 0x03, 0x04, 0x00, 0x04, 0x04, 0x80, 0x02, 0x00, 0x00, 0x00, 0x01, 0xc6, 0x33, 0x64, 0x05,
+    0x0a, 0x00, 0x00, 0x02, 0x0a, 0x00, 0x00, 0x01, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00, 0x1c, 0x20,
+    0x00, 0x00, 0x00, 0x00, 0x80, 0x04, 0x00, 0x00, 0x80, 0x05, 0x00, 0x00, 0x80, 0x03, 0x00, 0x00,
+    0x00, 0x09, 0x00, 0x14, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x04, 0x00,
+    0xc6, 0x33, 0x64, 0x04, 0x0a, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x00,
+];
 
 extern "C" {
     fn if_nametoindex(input: *const libc::c_char) -> libc::c_int;

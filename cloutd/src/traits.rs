@@ -22,3 +22,31 @@ pub trait Parseable<T> {
     /// Deserialize the current type.
     fn parse(&self) -> Result<T>;
 }
+
+impl<T: Emitable> Emitable for Option<T> {
+    fn buffer_len(&self) -> usize {
+        match *self {
+            Some(ref v) => v.buffer_len(),
+            None => 0,
+        }
+    }
+
+    fn emit(&self, buffer: &mut [u8]) {
+        if let Some(ref v) = *self {
+            v.emit(buffer)
+        }
+    }
+}
+
+impl<T: Emitable> Emitable for Vec<T> {
+    fn buffer_len(&self) -> usize {
+        self.iter().fold(0usize, |sum, e| sum + e.buffer_len())
+    }
+
+    fn emit(&self, buffer: &mut [u8]) {
+        self.iter().fold(buffer, |buf, e| {
+            e.emit(buf);
+            &mut buf[e.buffer_len()..]
+        });
+    }
+}
