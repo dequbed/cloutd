@@ -39,6 +39,9 @@ extern crate nom;
 extern crate rtnetlink;
 extern crate netlink_socket;
 
+extern crate core;
+extern crate byteorder;
+
 use slog::Drain;
 
 use tokio_codec::Decoder;
@@ -54,7 +57,11 @@ use rtnetlink::constants::{NLM_F_DUMP, NLM_F_REQUEST};
 use rtnetlink::{LinkHeader, LinkMessage, NetlinkCodec, NetlinkFlags, NetlinkFramed, NetlinkMessage, RtnlMessage};
 
 mod nhrp;
+use nhrp::*;
 mod netlink;
+
+mod error;
+use error::*;
 
 fn mainw() {
     let decorator = slog_term::TermDecorator::new().build();
