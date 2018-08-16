@@ -1,11 +1,13 @@
 use super::*;
 
 pub use self::buffer::*;
-mod buffer;
+pub mod buffer;
 pub use self::header::*;
-mod header;
+pub mod header;
 pub use self::message::*;
-mod message;
+pub mod message;
+pub use self::cie::*;
+pub mod cie;
 
 mod resolution_request;
 pub use self::resolution_request::*;
