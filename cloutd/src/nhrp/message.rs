@@ -1,7 +1,7 @@
-use super::{NhrpBuffer, NhrpHeader, NhrpMessage};
+use super::{NhrpBuffer, NhrpHeader, NhrpMandatory};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct NhrpMessage {
     pub header: NhrpHeader,
-    pub message: NhrpMessage,
+    pub message: NhrpMandatory,
 }

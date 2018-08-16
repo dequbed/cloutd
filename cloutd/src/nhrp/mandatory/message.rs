@@ -1,6 +1,6 @@
 use super::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum NhrpMessage {
+pub enum NhrpMandatory {
     ResolutionRequest(ResolutionRequestMessage),
 }
