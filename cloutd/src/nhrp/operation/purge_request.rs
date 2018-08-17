@@ -1,16 +1,16 @@
 use {Parseable, Emitable, Result};
 use super::*;
-use super::cie::buffer::{CieBuffer, CieIterator};
+use super::cie::buffer::CieIterator;
 use super::cie::message::ClientInformationEntry;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct RegistrationRequestMessage {
+pub struct PurgeRequestMessage {
     header: CommonHeader,
     cie: Vec<ClientInformationEntry>,
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<RegistrationRequestMessage> for OperationBuffer<&'a T> {
-    fn parse(&self) -> Result<RegistrationRequestMessage> {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<PurgeRequestMessage> for OperationBuffer<&'a T> {
+    fn parse(&self) -> Result<PurgeRequestMessage> {
         let header = <Self as Parseable<CommonHeader>>::parse(self)?;
         let cies = CieIterator::new(self.payload());
         let mut ciev = Vec::new();
@@ -21,14 +21,14 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<RegistrationRequestMessage> for Oper
             }
         }
 
-        Ok(RegistrationRequestMessage {
+        Ok(PurgeRequestMessage {
             header: header,
             cie: ciev,
         })
     }
 }
 
-impl Emitable for RegistrationRequestMessage {
+impl Emitable for PurgeRequestMessage {
     fn buffer_len(&self) -> usize {
         self.header.buffer_len() + self.cie.buffer_len()
     }

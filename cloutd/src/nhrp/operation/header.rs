@@ -21,7 +21,6 @@ impl From<AddrTL> for u8 {
     // FIXME: Technically only valid for values <64
     fn from(value: AddrTL) -> u8 {
         use self::AddrTL::*;
-        println!("{:?}", value);
         match value {
             E164(v) => (v & 0b00111111) | 64,
             NSAP(v) => (v & 0b00111111),
@@ -66,10 +65,10 @@ impl Emitable for CommonHeader {
 
     fn emit(&self, buffer: &mut [u8]) {
         use self::AddrTL::*;
-        let e: [u8; 0] = [];
+        let mut e: [u8; 0] = [];
         let mut buffer = OperationBuffer::new(buffer, &mut e);
-        buffer.set_src_nbma_addr_tl(NSAP(4));
-        buffer.set_src_nbma_saddr_tl(NSAP(0));
+        buffer.set_src_nbma_addr_tl(NSAP(self.src_nbma_addr.len() as u8));
+        buffer.set_src_nbma_saddr_tl(NSAP(self.src_nbma_saddr.len() as u8));
         buffer.set_src_proto_addr_len(self.src_proto_addr.len() as u8);
         buffer.set_dst_proto_addr_len(self.dst_proto_addr.len() as u8);
         buffer.set_flags(self.flags);

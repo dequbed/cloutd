@@ -1,5 +1,5 @@
 use {Parseable, Emitable, Result, Error};
-use super::{NhrpBuffer, FixedHeader};
+use super::{NhrpBuffer, FixedHeader, OperationBuffer, NhrpOp};
 use super::operation::Operation;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -30,26 +30,42 @@ impl NhrpMessage {
     }
 }
 
+use super::NhrpOp::*;
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpMessage> for NhrpBuffer<&'a T> {
     fn parse(&self) -> Result<NhrpMessage> {
         let header = <Self as Parseable<FixedHeader>>::parse(self)?;
 
-        use super::NhrpOp::*;
+        use super::operation::*;
         let operation = match header.optype() {
             ResolutionRequest => {
                 let msg: ResolutionRequestMessage
-                    = MandatoryHeaderBuffer::new(&self.payload()).parse()?;
-                NhrpMandatory::ResolutionRequest(msg)
+                    = OperationBuffer::new(&self.payload(), &self.extensions()).parse()?;
+                Operation::ResolutionRequest(msg)
             },
             ResolutionReply => {
                 let msg: ResolutionReplyMessage
-                    = MandatoryHeaderBuffer::new(&self.payload()).parse()?;
-                NhrpMandatory::ResolutionReply(msg)
+                    = OperationBuffer::new(&self.payload(), &self.extensions()).parse()?;
+                Operation::ResolutionReply(msg)
             },
             RegistrationRequest => {
                 let msg: RegistrationRequestMessage
-                    = MandatoryHeaderBuffer::new(&self.payload()).parse()?;
-                NhrpMandatory::RegistrationRequest(msg)
+                    = OperationBuffer::new(&self.payload(), &self.extensions()).parse()?;
+                Operation::RegistrationRequest(msg)
+            },
+            RegistrationReply => {
+                let msg: RegistrationReplyMessage
+                    = OperationBuffer::new(&self.payload(), &self.extensions()).parse()?;
+                Operation::RegistrationReply(msg)
+            },
+            PurgeRequest => {
+                let msg: PurgeRequestMessage
+                    = OperationBuffer::new(&self.payload(), &self.extensions()).parse()?;
+                Operation::PurgeRequest(msg)
+            },
+            PurgeReply => {
+                let msg: PurgeReplyMessage
+                    = OperationBuffer::new(&self.payload(), &self.extensions()).parse()?;
+                Operation::PurgeReply(msg)
             },
             _ => unimplemented!(),
         };
@@ -68,6 +84,9 @@ impl Emitable for NhrpMessage {
             ResolutionRequest(ref msg) => msg.buffer_len(),
             ResolutionReply(ref msg) => msg.buffer_len(),
             RegistrationRequest(ref msg) => msg.buffer_len(),
+            RegistrationReply(ref msg) => msg.buffer_len(),
+            PurgeRequest(ref msg) => msg.buffer_len(),
+            PurgeReply(ref msg) => msg.buffer_len(),
         };
         payload_len + self.header.buffer_len()
     }
@@ -81,6 +100,9 @@ impl Emitable for NhrpMessage {
             ResolutionRequest(ref msg) => msg.emit(buffer),
             ResolutionReply(ref msg) => msg.emit(buffer),
             RegistrationRequest(ref msg) => msg.emit(buffer),
+            RegistrationReply(ref msg) => msg.emit(buffer),
+            PurgeRequest(ref msg) => msg.emit(buffer),
+            PurgeReply(ref msg) => msg.emit(buffer),
         }
     }
 }

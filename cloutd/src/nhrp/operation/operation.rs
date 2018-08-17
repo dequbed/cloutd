@@ -1,14 +1,11 @@
 use super::*;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum NhrpMandatory {
+pub enum Operation {
     ResolutionRequest(ResolutionRequestMessage),
     ResolutionReply(ResolutionReplyMessage),
     RegistrationRequest(RegistrationRequestMessage),
-    /*
-     *RegistrationReply(RegistrationReplyMessage),
-     *PurgeRequest(PurgeRequestMessage),
-     *PurgeReply(PurgeReplyMessage),
-     *ErrorIndication(ErrorMessage),
-     */
+    RegistrationReply(RegistrationReplyMessage),
+    PurgeRequest(PurgeRequestMessage),
+    PurgeReply(PurgeReplyMessage),
 }

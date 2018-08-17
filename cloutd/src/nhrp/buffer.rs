@@ -101,7 +101,13 @@ impl<T: AsRef<[u8]>> NhrpBuffer<T> {
 
 impl<'a, T: AsRef<[u8]> + ?Sized> NhrpBuffer<&'a T> {
     pub fn payload(&self) -> &'a [u8] {
-        let range = PAYLOAD.start..self.length() as usize;
+        let range = PAYLOAD.start..self.extoffset() as usize;
+        let data = self.buffer.as_ref();
+        &data[range]
+    }
+
+    pub fn extensions(&self) -> &'a [u8] {
+        let range = (self.extoffset() as usize)..;
         let data = self.buffer.as_ref();
         &data[range]
     }
@@ -109,7 +115,13 @@ impl<'a, T: AsRef<[u8]> + ?Sized> NhrpBuffer<&'a T> {
 
 impl<'a, T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> NhrpBuffer<&'a mut T> {
     pub fn payload_mut(&mut self) -> &mut [u8] {
-        let range = PAYLOAD.start..self.length() as usize;
+        let range = PAYLOAD.start..self.extoffset() as usize;
+        let data = self.buffer.as_mut();
+        &mut data[range]
+    }
+
+    pub fn extensions_mut(&mut self) -> &mut [u8] {
+        let range = (self.extoffset() as usize)..;
         let data = self.buffer.as_mut();
         &mut data[range]
     }

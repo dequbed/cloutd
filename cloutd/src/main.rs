@@ -127,8 +127,12 @@ fn mainw() {
  *    };
  */
 
-    let p: NhrpMessage = NhrpBuffer::new_checked(&NHRPKT[..]).unwrap().parse().unwrap();
+    let p: NhrpMessage = NhrpMessage::from_bytes(&NHRPKT).unwrap();
     println!("{:?}", p);
+    let mut arr = [0; 200];
+    p.to_bytes(&mut arr).unwrap();
+    let q: NhrpMessage = NhrpMessage::from_bytes(&arr).unwrap();
+    println!("{:#?}", q);
 
     //let (nlsink,nlstream) = NetlinkFramed::new(nlsock, NetlinkCodec::<NetlinkMessage>::new()).split();
 

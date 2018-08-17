@@ -35,6 +35,7 @@ impl Emitable for ResolutionReplyMessage {
 
     fn emit(&self, buffer: &mut [u8]) {
         self.header.emit(buffer);
+        let buffer = &mut buffer[self.header.buffer_len()..];
         self.cie.emit(buffer);
     }
 }
