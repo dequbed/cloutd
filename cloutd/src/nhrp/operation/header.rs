@@ -30,12 +30,12 @@ impl From<AddrTL> for u8 {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct CommonHeader {
-    flags: u16,
-    request_id: u32,
-    src_nbma_addr: Vec<u8>,
-    src_nbma_saddr: Vec<u8>,
-    src_proto_addr: Vec<u8>,
-    dst_proto_addr: Vec<u8>,
+    pub flags: u16,
+    pub request_id: u32,
+    pub src_nbma_addr: Vec<u8>,
+    pub src_nbma_saddr: Vec<u8>,
+    pub src_proto_addr: Vec<u8>,
+    pub dst_proto_addr: Vec<u8>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

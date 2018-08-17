@@ -9,6 +9,18 @@ pub struct RegistrationRequestMessage {
     cie: Vec<ClientInformationEntry>,
 }
 
+impl RegistrationRequestMessage {
+    pub fn new(header: CommonHeader, cie: Vec<ClientInformationEntry>) -> Self {
+        RegistrationRequestMessage {
+            header: header, cie: cie,
+        }
+    }
+
+    pub fn split(self) -> (CommonHeader, Vec<ClientInformationEntry>) {
+        (self.header, self.cie)
+    }
+}
+
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<RegistrationRequestMessage> for OperationBuffer<&'a T> {
     fn parse(&self) -> Result<RegistrationRequestMessage> {
         let header = <Self as Parseable<CommonHeader>>::parse(self)?;

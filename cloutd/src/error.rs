@@ -22,3 +22,9 @@ impl Display for Error {
         }
     }
 }
+
+impl From<io::Error> for Error {
+    fn from(value: io::Error) -> Error {
+        Error::Io(value)
+    }
+}
