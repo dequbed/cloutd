@@ -1,16 +1,16 @@
 use {Parseable, Emitable, Result, Error};
-use super::{NhrpBuffer, NhrpHeader, NhrpMandatory, MandatoryHeaderBuffer};
-use super::mandatory::*;
+use super::{NhrpBuffer, FixedHeader};
+use super::operation::Operation;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct NhrpMessage {
-    pub header: NhrpHeader,
-    pub message: NhrpMandatory,
+    pub header: FixedHeader,
+    pub operation: Operation,
 }
 
 impl NhrpMessage {
-    pub fn into_parts(self) -> (NhrpHeader, NhrpMandatory) {
-        (self.header, self.message)
+    pub fn into_parts(self) -> (FixedHeader, Operation) {
+        (self.header, self.operation)
     }
 
     pub fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize> {
@@ -21,14 +21,21 @@ impl NhrpMessage {
             Ok(self.header.length() as usize)
         }
     }
+
+    pub fn from_bytes(buffer: &[u8]) -> Result<Self> {
+        match NhrpBuffer::new_checked(buffer) {
+            Ok(buffer) => buffer.parse(),
+            Err(e) => Err(e),
+        }
+    }
 }
 
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpMessage> for NhrpBuffer<&'a T> {
     fn parse(&self) -> Result<NhrpMessage> {
-        let header = <Self as Parseable<NhrpHeader>>::parse(self)?;
+        let header = <Self as Parseable<FixedHeader>>::parse(self)?;
 
         use super::NhrpOp::*;
-        let message = match header.optype() {
+        let operation = match header.optype() {
             ResolutionRequest => {
                 let msg: ResolutionRequestMessage
                     = MandatoryHeaderBuffer::new(&self.payload()).parse()?;
@@ -49,15 +56,15 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpMessage> for NhrpBuffer<&'a T> {
 
         Ok(NhrpMessage {
             header: header,
-            message: message,
+            operation: operation,
         })
     }
 }
 
 impl Emitable for NhrpMessage {
     fn buffer_len(&self) -> usize {
-        use nhrp::mandatory::NhrpMandatory::*;
-        let payload_len = match self.message {
+        use nhrp::operation::Operation::*;
+        let payload_len = match self.operation {
             ResolutionRequest(ref msg) => msg.buffer_len(),
             ResolutionReply(ref msg) => msg.buffer_len(),
             RegistrationRequest(ref msg) => msg.buffer_len(),
@@ -69,8 +76,8 @@ impl Emitable for NhrpMessage {
         self.header.emit(buffer);
         let buffer = &mut buffer[self.header.buffer_len()..self.header.length() as usize];
 
-        use nhrp::mandatory::NhrpMandatory::*;
-        match self.message {
+        use nhrp::operation::Operation::*;
+        match self.operation {
             ResolutionRequest(ref msg) => msg.emit(buffer),
             ResolutionReply(ref msg) => msg.emit(buffer),
             RegistrationRequest(ref msg) => msg.emit(buffer),

@@ -11,23 +11,24 @@ const FLAGS: Field = 4..6;
 const REQUEST_ID: Field = 6..10;
 const ADDRS: Rest = 10..;
 
-pub struct MandatoryHeaderBuffer<T> {
-    buffer: T,
+pub struct OperationBuffer<T> {
+    mandatory: T,
+    extensions: T,
 }
 
-impl<T: AsRef<[u8]>> MandatoryHeaderBuffer<T> {
-    pub fn new(buffer: T) -> MandatoryHeaderBuffer<T> {
-        MandatoryHeaderBuffer { buffer: buffer }
+impl<T: AsRef<[u8]>> OperationBuffer<T> {
+    pub fn new(mandatory: T, extensions: T) -> OperationBuffer<T> {
+        Self { mandatory: mandatory, extensions: extensions }
     }
 
-    pub fn new_checked(buffer: T) -> Result<MandatoryHeaderBuffer<T>> {
-        let packet = Self::new(buffer);
+    pub fn new_checked(mandatory: T, extensions: T) -> Result<OperationBuffer<T>> {
+        let packet = Self::new(mandatory, extensions);
         packet.check_buffer_length()?;
         Ok(packet)
     }
 
     fn check_buffer_length(&self) -> Result<()> {
-        let len = self.buffer.as_ref().len();
+        let len = self.mandatory.as_ref().len();
         if len < DST_PROTO_LEN || len < self.length() as usize {
             Err(Error::Truncated)
         } else {
@@ -35,22 +36,22 @@ impl<T: AsRef<[u8]>> MandatoryHeaderBuffer<T> {
         }
     }
 
-    pub fn length(&self) -> u32 {
+    pub fn length(&self) -> usize {
         let shtl: u8 = self.src_nbma_addr_tl().into();
         let sstl: u8 = self.src_nbma_saddr_tl().into();
 
-        8 + shtl as u32
-          + sstl as u32
-          + self.src_proto_addr_len() as u32
-          + self.dst_proto_addr_len() as u32
+        8 + shtl as usize
+          + sstl as usize
+          + self.src_proto_addr_len() as usize
+          + self.dst_proto_addr_len() as usize
     }
 
-    pub fn into_inner(self) -> T {
-        self.buffer
+    pub fn into_inner(self) -> (T, T) {
+        (self.mandatory, self.extensions)
     }
 
     pub fn src_nbma_addr_tl(&self) -> AddrTL {
-        let data = self.buffer.as_ref();
+        let data = self.mandatory.as_ref();
         data[SHTL].into()
     }
     pub fn src_nbma_addr_offset(&self) -> usize {
@@ -58,7 +59,7 @@ impl<T: AsRef<[u8]>> MandatoryHeaderBuffer<T> {
     }
 
     pub fn src_nbma_saddr_tl(&self) -> AddrTL {
-        let data = self.buffer.as_ref();
+        let data = self.mandatory.as_ref();
         data[SSTL].into()
     }
     pub fn src_nbma_saddr_offset(&self) -> usize {
@@ -67,7 +68,7 @@ impl<T: AsRef<[u8]>> MandatoryHeaderBuffer<T> {
     }
 
     pub fn src_proto_addr_len(&self) -> u8 {
-        let data = self.buffer.as_ref();
+        let data = self.mandatory.as_ref();
         data[SRC_PROTO_LEN]
     }
     pub fn src_proto_addr_offset(&self) -> usize {
@@ -76,7 +77,7 @@ impl<T: AsRef<[u8]>> MandatoryHeaderBuffer<T> {
     }
 
     pub fn dst_proto_addr_len(&self) -> u8 {
-        let data = self.buffer.as_ref();
+        let data = self.mandatory.as_ref();
         data[DST_PROTO_LEN]
     }
     pub fn dst_proto_addr_offset(&self) -> usize {
@@ -84,28 +85,28 @@ impl<T: AsRef<[u8]>> MandatoryHeaderBuffer<T> {
     }
 
     pub fn flags(&self) -> u16 {
-        let data = self.buffer.as_ref();
+        let data = self.mandatory.as_ref();
         BigEndian::read_u16(&data[FLAGS])
     }
 
     pub fn request_id(&self) -> u32 {
-        let data = self.buffer.as_ref();
+        let data = self.mandatory.as_ref();
         BigEndian::read_u32(&data[REQUEST_ID])
     }
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> MandatoryHeaderBuffer<&'a T> {
+impl<'a, T: AsRef<[u8]> + ?Sized> OperationBuffer<&'a T> {
     pub fn src_nbma_addr(&self) -> &'a [u8] {
         let shtl: u8 = self.src_nbma_addr_tl().into();
         let range = self.src_nbma_addr_offset()..(self.src_nbma_addr_offset() + shtl as usize);
-        let data = self.buffer.as_ref();
+        let data = self.mandatory.as_ref();
         &data[range]
     }
 
     pub fn src_nbma_saddr(&self) -> &'a [u8] {
         let sstl: u8 = self.src_nbma_saddr_tl().into();
         let range = self.src_nbma_saddr_offset()..(self.src_nbma_saddr_offset() + sstl as usize);
-        let data = self.buffer.as_ref();
+        let data = self.mandatory.as_ref();
         &data[range]
     }
 
@@ -113,7 +114,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> MandatoryHeaderBuffer<&'a T> {
         let offset = self.src_proto_addr_offset();
         let len = self.src_proto_addr_len() as usize;
         let range = offset..(offset+len);
-        let data = self.buffer.as_ref();
+        let data = self.mandatory.as_ref();
         &data[range]
     }
 
@@ -121,29 +122,29 @@ impl<'a, T: AsRef<[u8]> + ?Sized> MandatoryHeaderBuffer<&'a T> {
         let offset = self.dst_proto_addr_offset();
         let len = self.dst_proto_addr_len() as usize;
         let range = offset..(offset+len);
-        let data = self.buffer.as_ref();
+        let data = self.mandatory.as_ref();
         &data[range]
     }
 
     pub fn payload(&self) -> &'a [u8] {
         let range = (self.dst_proto_addr_offset() + self.dst_proto_addr_len() as usize)..;
-        let data = self.buffer.as_ref();
+        let data = self.mandatory.as_ref();
         &data[range]
     }
 }
 
-impl<'a, T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> MandatoryHeaderBuffer<&'a mut T> {
+impl<'a, T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> OperationBuffer<&'a mut T> {
     pub fn src_nbma_addr_mut(&mut self) -> &mut [u8]{
         let shtl: u8 = self.src_nbma_addr_tl().into();
         let range = self.src_nbma_addr_offset()..(self.src_nbma_addr_offset() + shtl as usize);
-        let data = self.buffer.as_mut();
+        let data = self.mandatory.as_mut();
         &mut data[range]
     }
 
     pub fn src_nbma_saddr_mut(&mut self) -> &mut [u8]{
         let sstl: u8 = self.src_nbma_saddr_tl().into();
         let range = self.src_nbma_saddr_offset()..(self.src_nbma_saddr_offset() + sstl as usize);
-        let data = self.buffer.as_mut();
+        let data = self.mandatory.as_mut();
         &mut data[range]
     }
 
@@ -151,7 +152,7 @@ impl<'a, T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> MandatoryHeaderBuffer<&'a mut T>
         let offset = self.src_proto_addr_offset();
         let len = self.src_proto_addr_len() as usize;
         let range = offset..(offset+len);
-        let data = self.buffer.as_mut();
+        let data = self.mandatory.as_mut();
         &mut data[range]
     }
 
@@ -159,39 +160,39 @@ impl<'a, T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> MandatoryHeaderBuffer<&'a mut T>
         let offset = self.dst_proto_addr_offset();
         let len = self.dst_proto_addr_len() as usize;
         let range = offset..(offset+len);
-        let data = self.buffer.as_mut();
+        let data = self.mandatory.as_mut();
         &mut data[range]
     }
 }
 
-impl<T: AsRef<[u8]> + AsMut<[u8]>> MandatoryHeaderBuffer<T> {
+impl<T: AsRef<[u8]> + AsMut<[u8]>> OperationBuffer<T> {
     pub fn set_src_nbma_addr_tl(&mut self, value: AddrTL) {
-        let data = self.buffer.as_mut();
+        let data = self.mandatory.as_mut();
         data[SHTL] = value.into()
     }
 
     pub fn set_src_nbma_saddr_tl(&mut self, value: AddrTL) {
-        let data = self.buffer.as_mut();
+        let data = self.mandatory.as_mut();
         data[SSTL] = value.into()
     }
 
     pub fn set_src_proto_addr_len(&mut self, value: u8) {
-        let data = self.buffer.as_mut();
+        let data = self.mandatory.as_mut();
         data[SRC_PROTO_LEN] = value
     }
 
     pub fn set_dst_proto_addr_len(&mut self, value: u8) {
-        let data = self.buffer.as_mut();
+        let data = self.mandatory.as_mut();
         data[DST_PROTO_LEN] = value
     }
 
     pub fn set_flags(&mut self, value: u16) {
-        let data = self.buffer.as_mut();
+        let data = self.mandatory.as_mut();
         BigEndian::write_u16(&mut data[FLAGS], value)
     }
 
     pub fn set_request_id(&mut self, value: u32) {
-        let data = self.buffer.as_mut();
+        let data = self.mandatory.as_mut();
         BigEndian::write_u32(&mut data[REQUEST_ID], value)
     }
 }

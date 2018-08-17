@@ -44,7 +44,7 @@ impl From<NhrpOp> for u8 {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct NhrpHeader {
+pub struct FixedHeader {
     afn: u16,
     protype: u16,
     prosnap: [u8; 5],
@@ -56,7 +56,7 @@ pub struct NhrpHeader {
     optype: NhrpOp,
 }
 
-impl NhrpHeader {
+impl FixedHeader {
     pub fn length(&self) -> u16 {
         self.length
     }
@@ -66,9 +66,9 @@ impl NhrpHeader {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpHeader> for NhrpBuffer<&'a T> {
-    fn parse(&self) -> Result<NhrpHeader> {
-        Ok(NhrpHeader {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<FixedHeader> for NhrpBuffer<&'a T> {
+    fn parse(&self) -> Result<FixedHeader> {
+        Ok(FixedHeader {
             afn: self.afn(),
             protype: self.protype(),
             prosnap: self.prosnap(),
@@ -82,7 +82,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpHeader> for NhrpBuffer<&'a T> {
     }
 }
 
-impl Emitable for NhrpHeader {
+impl Emitable for FixedHeader {
     fn buffer_len(&self) -> usize {
         FIXED_HEADER_LEN
     }

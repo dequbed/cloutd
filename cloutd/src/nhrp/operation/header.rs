@@ -8,6 +8,7 @@ pub enum AddrTL {
 }
 impl From<u8> for AddrTL {
     fn from(value: u8) -> AddrTL {
+        assert!(value < 64);
         use self::AddrTL::*;
         if value & 64 == 64 {
             E164(value ^ 64) // Unset the 6th bit so the contained u8 is the length
@@ -20,9 +21,10 @@ impl From<AddrTL> for u8 {
     // FIXME: Technically only valid for values <64
     fn from(value: AddrTL) -> u8 {
         use self::AddrTL::*;
+        println!("{:?}", value);
         match value {
-            E164(v) => v | 64,
-            NSAP(v) => v
+            E164(v) => (v & 0b00111111) | 64,
+            NSAP(v) => (v & 0b00111111),
         }
     }
 }
@@ -39,12 +41,9 @@ pub struct CommonHeader {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ErrorHeader {
-    shtl: AddrTL,
-    sstl: AddrTL,
-
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<CommonHeader> for MandatoryHeaderBuffer<&'a T> {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<CommonHeader> for OperationBuffer<&'a T> {
     fn parse(&self) -> Result<CommonHeader> {
         Ok(CommonHeader {
             flags: self.flags(),
@@ -67,9 +66,10 @@ impl Emitable for CommonHeader {
 
     fn emit(&self, buffer: &mut [u8]) {
         use self::AddrTL::*;
-        let mut buffer = MandatoryHeaderBuffer::new(buffer);
-        buffer.set_src_nbma_addr_tl(NSAP(self.src_nbma_addr.len() as u8));
-        buffer.set_src_nbma_saddr_tl(NSAP(self.src_nbma_saddr.len() as u8));
+        let e: [u8; 0] = [];
+        let mut buffer = OperationBuffer::new(buffer, &mut e);
+        buffer.set_src_nbma_addr_tl(NSAP(4));
+        buffer.set_src_nbma_saddr_tl(NSAP(0));
         buffer.set_src_proto_addr_len(self.src_proto_addr.len() as u8);
         buffer.set_dst_proto_addr_len(self.dst_proto_addr.len() as u8);
         buffer.set_flags(self.flags);

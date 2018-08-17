@@ -9,7 +9,7 @@ pub struct ResolutionRequestMessage {
     cie: Option<ClientInformationEntry>,
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<ResolutionRequestMessage> for MandatoryHeaderBuffer<&'a T> {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<ResolutionRequestMessage> for OperationBuffer<&'a T> {
     fn parse(&self) -> Result<ResolutionRequestMessage> {
         let header = <Self as Parseable<CommonHeader>>::parse(self)?;
         let cie = match CieBuffer::new_checked(self.payload()) {
