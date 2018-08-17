@@ -15,6 +15,8 @@ pub(crate) type Index = usize;
 
 pub mod socket;
 pub use self::socket::*;
+pub mod codec;
+pub use codec::*;
 pub mod buffer;
 pub use self::buffer::*;
 pub mod header;
