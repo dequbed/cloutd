@@ -3,18 +3,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+#![allow(dead_code)]
 
 use libc as c;
 
-use pnet_sys as p;
-
 use std::io;
 use std::mem;
-use std::net::SocketAddr;
 use mio::{self, Evented, Token, Ready, PollOpt};
 use mio::unix::EventedFd;
 use std::os::unix::io::RawFd;
 
+#[allow(unused_imports)]
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use futures::{Poll, Async};
@@ -56,11 +55,11 @@ impl NhrpSocket {
 
     pub fn poll_recv_from(&mut self, buf: &mut [u8]) -> Poll<(usize, IpAddr), io::Error> {
         try_ready!(self.io.poll_read_ready(Ready::readable()));
-        let mut caddr: p::SockAddrStorage = unsafe { mem::zeroed() };
+        let mut caddr: c::sockaddr_storage = unsafe { mem::zeroed() };
 
         match self.io.get_ref().recv_from(buf, &mut caddr) {
             Ok(n) => {
-                let a = sockaddr_to_addr(&caddr, mem::size_of::<p::SockAddrStorage>());
+                let a = sockaddr_to_addr(&caddr, mem::size_of::<c::sockaddr_storage>());
                 Ok((n, a.unwrap()).into())
             },
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -97,7 +96,7 @@ impl NhrpRawSocket {
     pub fn send_to(&self, buf: &[u8], addr: &IpAddr) -> io::Result<usize> {
         let mut caddr = unsafe { mem::zeroed() };
         let slen = addr_to_sockaddr(*addr, &mut caddr);
-        let caddr_ptr = (&caddr as *const p::SockAddrStorage) as *const p::SockAddr;
+        let caddr_ptr = (&caddr as *const c::sockaddr_storage) as *const c::sockaddr;
 
         let cbuf = buf.as_ptr();
         let len = buf.len();
@@ -109,8 +108,8 @@ impl NhrpRawSocket {
         Ok(res as usize)
     }
 
-    pub fn recv_from(&self, buf: &mut [u8], caddr: *mut p::SockAddrStorage) -> io::Result<usize> {
-        let mut caddrlen = mem::size_of::<p::SockAddrStorage>() as p::SockLen;
+    pub fn recv_from(&self, buf: &mut [u8], caddr: *mut c::sockaddr_storage) -> io::Result<usize> {
+        let mut caddrlen = mem::size_of::<c::sockaddr_storage>() as c::socklen_t;
 
 
         let cbuf = buf.as_ptr();
@@ -149,11 +148,11 @@ impl Drop for NhrpRawSocket {
     }
 }
 
-pub fn addr_to_sockaddr(_addr: IpAddr, _storage: &mut p::SockAddrStorage) -> p::SockLen {
+pub fn addr_to_sockaddr(_addr: IpAddr, _storage: &mut c::sockaddr_storage) -> c::socklen_t {
     0
 }
 
-pub fn sockaddr_to_addr(storage: &p::SockAddrStorage, len: usize) -> io::Result<IpAddr> {
+pub fn sockaddr_to_addr(storage: &c::sockaddr_storage, len: usize) -> io::Result<IpAddr> {
     match storage.ss_family as c::c_int {
         c::PF_PACKET => {
             assert!(len as usize >= mem::size_of::<c::sockaddr_ll>());

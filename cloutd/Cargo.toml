@@ -17,7 +17,6 @@ byteorder = "1.2"
 libc = "0.2"
 mio = "0.6.15"
 futures = "0.1"
-pnet_sys = "0.21"
 nom = "4.0"
 
 rtnetlink = { path = "../netlink/rtnetlink", features = ["tokio_support"] }

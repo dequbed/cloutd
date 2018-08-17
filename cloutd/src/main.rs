@@ -31,7 +31,6 @@ extern crate mio;
 #[macro_use]
 extern crate futures;
 extern crate libc;
-extern crate pnet_sys;
 
 #[macro_use]
 extern crate nom;
