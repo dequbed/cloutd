@@ -1,5 +1,5 @@
 use {Parseable, Emitable, Result, Error};
-use super::{NhrpBuffer, FixedHeader, OperationBuffer, NhrpOp};
+use super::{NhrpBuffer, FixedHeader};
 use super::operation::Operation;
 
 #[derive(Debug, PartialEq, Eq, Clone)]

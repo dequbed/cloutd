@@ -1,6 +1,6 @@
 use {Parseable, Emitable, Result};
 use super::*;
-use super::cie::buffer::{CieBuffer, CieIterator};
+use super::cie::buffer::CieIterator;
 use super::cie::message::ClientInformationEntry;
 
 #[derive(Debug, PartialEq, Eq, Clone)]

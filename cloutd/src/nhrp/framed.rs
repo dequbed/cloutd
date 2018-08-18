@@ -5,7 +5,7 @@
  */
 
 use std::io;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr/*, Ipv6Addr*/};
 
 use futures::{Async, Poll, Stream, Sink, StartSend, AsyncSink};
 
