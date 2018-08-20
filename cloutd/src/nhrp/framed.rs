@@ -110,7 +110,7 @@ impl<C> NhrpFramed<C>{
             rd: BytesMut::with_capacity(INITIAL_RD_CAPACITY),
             wr: BytesMut::with_capacity(INITIAL_WR_CAPACITY),
             out_addr: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-            flushed: false,
+            flushed: true,
         }
     }
 
