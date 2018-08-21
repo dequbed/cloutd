@@ -65,8 +65,7 @@ impl Emitable for CommonHeader {
 
     fn emit(&self, buffer: &mut [u8]) {
         use self::AddrTL::*;
-        let mut e: [u8; 0] = [];
-        let mut buffer = OperationBuffer::new(buffer, &mut e);
+        let mut buffer = OperationBuffer::new(buffer);
         buffer.set_src_nbma_addr_tl(NSAP(self.src_nbma_addr.len() as u8));
         buffer.set_src_nbma_saddr_tl(NSAP(self.src_nbma_saddr.len() as u8));
         buffer.set_src_proto_addr_len(self.src_proto_addr.len() as u8);

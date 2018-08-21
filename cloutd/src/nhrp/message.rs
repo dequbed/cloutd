@@ -21,11 +21,11 @@ impl NhrpMessage {
     }
 
     pub fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize> {
-        if self.header.length() as usize > buffer.len() {
+        if self.buffer_len() as usize > buffer.len() {
             Err(Error::Exhausted)
         } else {
             self.emit(buffer);
-            Ok(self.header.length() as usize)
+            Ok(self.buffer_len() as usize)
         }
     }
 
@@ -46,36 +46,38 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpMessage> for NhrpBuffer<&'a T> {
         let operation = match header.optype() {
             ResolutionRequest => {
                 let msg: ResolutionRequestMessage
-                    = OperationBuffer::new(&self.payload(), &self.extensions()).parse()?;
+                    = OperationBuffer::new(&self.payload()).parse()?;
                 Operation::ResolutionRequest(msg)
             },
             ResolutionReply => {
                 let msg: ResolutionReplyMessage
-                    = OperationBuffer::new(&self.payload(), &self.extensions()).parse()?;
+                    = OperationBuffer::new(&self.payload()).parse()?;
                 Operation::ResolutionReply(msg)
             },
             RegistrationRequest => {
                 let msg: RegistrationRequestMessage
-                    = OperationBuffer::new(&self.payload(), &self.extensions()).parse()?;
+                    = OperationBuffer::new(&self.payload()).parse()?;
                 Operation::RegistrationRequest(msg)
             },
             RegistrationReply => {
                 let msg: RegistrationReplyMessage
-                    = OperationBuffer::new(&self.payload(), &self.extensions()).parse()?;
+                    = OperationBuffer::new(&self.payload()).parse()?;
                 Operation::RegistrationReply(msg)
             },
             PurgeRequest => {
                 let msg: PurgeRequestMessage
-                    = OperationBuffer::new(&self.payload(), &self.extensions()).parse()?;
+                    = OperationBuffer::new(&self.payload()).parse()?;
                 Operation::PurgeRequest(msg)
             },
             PurgeReply => {
                 let msg: PurgeReplyMessage
-                    = OperationBuffer::new(&self.payload(), &self.extensions()).parse()?;
+                    = OperationBuffer::new(&self.payload()).parse()?;
                 Operation::PurgeReply(msg)
             },
             _ => unimplemented!(),
         };
+
+        //let extensions = <Self as Parseable<Extensions>>::parse(&self.extensions())?
 
         Ok(NhrpMessage {
             header: header,
@@ -102,7 +104,7 @@ impl Emitable for NhrpMessage {
         self.header.emit(buffer);
 
         {
-            let payload = &mut buffer[self.header.buffer_len()..self.header.length() as usize];
+            let payload = &mut buffer[self.header.buffer_len()..self.buffer_len() as usize];
 
             use nhrp::operation::Operation::*;
             match self.operation {
@@ -116,9 +118,9 @@ impl Emitable for NhrpMessage {
         }
 
         let mut mbuffer = NhrpBuffer::new(buffer);
+        mbuffer.set_length(self.buffer_len() as u16);
         mbuffer.set_checksum(0);
         let chksum = mbuffer.calculate_checksum();
-        println!("checksum: {}", chksum);
         mbuffer.set_checksum(chksum);
     }
 }
