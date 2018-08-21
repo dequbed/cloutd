@@ -130,18 +130,29 @@ pub struct FixedHeader {
     afn: u16,
     protocol_type: ProtocolType,
     hopcount: u8,
-    length: u16,
-    checksum: u16,
-    extoffset: u16,
-    version: u8,
-    pub optype: NhrpOp,
+    optype: NhrpOp,
 }
 
 impl FixedHeader {
-    pub fn length(&self) -> u16 {
-        self.length
+    pub fn new(afn: u16, protocol_type: ProtocolType, hopcount: u8, optype: NhrpOp) -> FixedHeader {
+        FixedHeader {
+            afn: afn,
+            protocol_type: protocol_type,
+            hopcount: hopcount,
+            optype: optype,
+        }
     }
 
+    // FIXME: Use these to do lazy parsing.
+    pub fn afn(&self) -> u16 {
+        self.afn
+    }
+    pub fn protocol_type(&self) -> ProtocolType {
+        self.protocol_type
+    }
+    pub fn hopcount(&self) -> u8 {
+        self.hopcount
+    }
     pub fn optype(&self) -> NhrpOp {
         self.optype
     }
@@ -153,10 +164,6 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<FixedHeader> for NhrpBuffer<&'a T> {
             afn: self.afn(),
             protocol_type: self.protocol_type(),
             hopcount: self.hopcount(),
-            length: self.length(),
-            checksum: self.checksum(),
-            extoffset: self.extoffset(),
-            version: self.version(),
             optype: self.optype(),
         })
     }
@@ -172,10 +179,6 @@ impl Emitable for FixedHeader {
         buffer.set_afn(self.afn);
         buffer.set_protocol_type(self.protocol_type);
         buffer.set_hopcount(self.hopcount);
-        buffer.set_length(self.length);
-        buffer.set_checksum(self.checksum);
-        buffer.set_extoffset(self.extoffset);
-        buffer.set_version(self.version);
         buffer.set_optype(self.optype);
     }
 }
