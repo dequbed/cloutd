@@ -16,10 +16,14 @@ use std::os::unix::io::RawFd;
 #[allow(unused_imports)]
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+use byteorder::{ByteOrder, NativeEndian};
+
 use futures::{Poll, Async};
 
 use tokio::reactor::Handle;
 use tokio::reactor::PollEvented2;
+
+pub type SockAddr = c::sockaddr_ll;
 
 #[derive(Debug)]
 pub struct NhrpSocket {
@@ -55,11 +59,11 @@ impl NhrpSocket {
 
     pub fn poll_recv_from(&mut self, buf: &mut [u8]) -> Poll<(usize, IpAddr), io::Error> {
         try_ready!(self.io.poll_read_ready(Ready::readable()));
-        let mut caddr: c::sockaddr_storage = unsafe { mem::zeroed() };
+        let mut caddr = unsafe { mem::zeroed() };
 
         match self.io.get_ref().recv_from(buf, &mut caddr) {
             Ok(n) => {
-                let a = sockaddr_to_addr(&caddr, mem::size_of::<c::sockaddr_storage>());
+                let a = sockaddr_to_addr(&caddr);
                 Ok((n, a.unwrap()).into())
             },
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -96,7 +100,7 @@ impl NhrpRawSocket {
     pub fn send_to(&self, buf: &[u8], addr: &IpAddr) -> io::Result<usize> {
         let mut caddr = unsafe { mem::zeroed() };
         let slen = addr_to_sockaddr(*addr, &mut caddr);
-        let caddr_ptr = (&caddr as *const c::sockaddr_storage) as *const c::sockaddr;
+        let caddr_ptr = &caddr as *const SockAddr as *const c::sockaddr;
 
         let cbuf = buf.as_ptr();
         let len = buf.len();
@@ -108,8 +112,8 @@ impl NhrpRawSocket {
         Ok(res as usize)
     }
 
-    pub fn recv_from(&self, buf: &mut [u8], caddr: *mut c::sockaddr_storage) -> io::Result<usize> {
-        let mut caddrlen = mem::size_of::<c::sockaddr_storage>() as c::socklen_t;
+    pub fn recv_from(&self, buf: &mut [u8], caddr: *mut SockAddr) -> io::Result<usize> {
+        let mut caddrlen = mem::size_of::<SockAddr>() as c::socklen_t;
 
 
         let cbuf = buf.as_ptr();
@@ -148,39 +152,42 @@ impl Drop for NhrpRawSocket {
     }
 }
 
-pub fn addr_to_sockaddr(_addr: IpAddr, _storage: &mut c::sockaddr_storage) -> c::socklen_t {
-    0
+pub fn addr_to_sockaddr(addr: IpAddr, sockaddr: &mut SockAddr) -> c::socklen_t {
+    use std::net::IpAddr::*;
+    use std::mem;
+    match addr {
+        V4(addr) => {
+            let bytes = addr.octets();
+            (*sockaddr).sll_family = c::AF_PACKET as u16;
+            let mut addrbuf = &mut sockaddr.sll_addr[0..4];
+            addrbuf.copy_from_slice(&bytes);
+            (*sockaddr).sll_halen = bytes.len() as u8;
+            (*sockaddr).sll_ifindex = 6; // TODO!
+            (*sockaddr).sll_protocol = 0x2001u16.to_be();
+            mem::size_of::<SockAddr>() as c::socklen_t
+        }
+        _ => {0}
+    }
 }
 
-pub fn sockaddr_to_addr(storage: &c::sockaddr_storage, len: usize) -> io::Result<IpAddr> {
-    match storage.ss_family as c::c_int {
-        c::PF_PACKET => {
-            assert!(len as usize >= mem::size_of::<c::sockaddr_ll>());
-            let storage: &c::sockaddr_ll = unsafe { mem::transmute(storage) };
-            if storage.sll_protocol == 0x2001u16.to_be() {
+pub fn sockaddr_to_addr(addr: &SockAddr) -> io::Result<IpAddr> {
+    assert_eq!(addr.sll_family as c::c_int, c::AF_PACKET, "Passed sockaddr is not a PF_PACKET sockaddr!");
+    match addr.sll_hatype {
+        778 /*c::ARPHRD_IPGRE*/ => {
+            if addr.sll_protocol == 0x2001u16.to_be() {
 
                 // FIXME: Find a better way to figure out the underlying address type
                 //        Maybe don't strip the GRE header (aka use PROTO_RAW in the socket) and
                 //        look at the ethertype?
 
-                match storage.sll_halen {
-                    4 => {
-                        let mut addr: [u8; 4] = [0;4];
-                        addr.clone_from_slice(&storage.sll_addr[0..4]);
-                        let ip = u32::from_be(u32::from_bytes(addr));
-                        let a = (ip >> 24) as u8;
-                        let b = (ip >> 16) as u8;
-                        let c = (ip >> 8) as u8;
-                        let d = ip as u8;
-                        Ok(IpAddr::V4(Ipv4Addr::new(a, b, c, d)))
-                    },
-                    // FIXME: IPv6 Support!
-                    _ => Err(io::Error::new(io::ErrorKind::InvalidData, "Not implemented yet, sorry."))
-                }
+                let ip = NativeEndian::read_u32(&addr.sll_addr[0..4]).into();
+                Ok(IpAddr::V4(ip))
             } else {
                 Err(io::Error::new(io::ErrorKind::InvalidData, "Not implemented yet, sorry."))
             }
         },
-        _ => Err(io::Error::new(io::ErrorKind::InvalidData, "Not implemented yet, sorry."))
+        823 /*c::ARPHRD_IP6GRE*/ =>
+            Err(io::Error::new(io::ErrorKind::InvalidData, "IPv6 is not implemented yet, sorry.")),
+        v => Err(io::Error::new(io::ErrorKind::InvalidData, format!("Protocol {} is not implemented.", v))),
     }
 }
