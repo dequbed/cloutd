@@ -9,6 +9,13 @@ pub struct NhrpMessage {
 }
 
 impl NhrpMessage {
+    pub fn new(header: FixedHeader, operation: Operation) -> Self {
+        NhrpMessage {
+            header: header,
+            operation: operation,
+        }
+    }
+
     pub fn into_parts(self) -> (FixedHeader, Operation) {
         (self.header, self.operation)
     }
@@ -93,16 +100,25 @@ impl Emitable for NhrpMessage {
 
     fn emit(&self, buffer: &mut [u8]) {
         self.header.emit(buffer);
-        let buffer = &mut buffer[self.header.buffer_len()..self.header.length() as usize];
 
-        use nhrp::operation::Operation::*;
-        match self.operation {
-            ResolutionRequest(ref msg) => msg.emit(buffer),
-            ResolutionReply(ref msg) => msg.emit(buffer),
-            RegistrationRequest(ref msg) => msg.emit(buffer),
-            RegistrationReply(ref msg) => msg.emit(buffer),
-            PurgeRequest(ref msg) => msg.emit(buffer),
-            PurgeReply(ref msg) => msg.emit(buffer),
+        {
+            let payload = &mut buffer[self.header.buffer_len()..self.header.length() as usize];
+
+            use nhrp::operation::Operation::*;
+            match self.operation {
+                ResolutionRequest(ref msg) => msg.emit(payload),
+                ResolutionReply(ref msg) => msg.emit(payload),
+                RegistrationRequest(ref msg) => msg.emit(payload),
+                RegistrationReply(ref msg) => msg.emit(payload),
+                PurgeRequest(ref msg) => msg.emit(payload),
+                PurgeReply(ref msg) => msg.emit(payload),
+            }
         }
+
+        let mut mbuffer = NhrpBuffer::new(buffer);
+        mbuffer.set_checksum(0);
+        let chksum = mbuffer.calculate_checksum();
+        println!("checksum: {}", chksum);
+        mbuffer.set_checksum(chksum);
     }
 }

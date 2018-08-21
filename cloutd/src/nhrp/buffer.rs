@@ -68,6 +68,14 @@ impl<T: AsRef<[u8]>> NhrpBuffer<T> {
         s
     }
 
+    pub fn protocol_type(&self) -> ProtocolType {
+        let protype = self.protype().into();
+        ProtocolType {
+            protype: protype,
+            prosnap: self.prosnap(),
+        }
+    }
+
     pub fn hopcount(&self) -> u8 {
         let data = self.buffer.as_ref();
         data[HOPCOUNT]
@@ -96,6 +104,25 @@ impl<T: AsRef<[u8]>> NhrpBuffer<T> {
     pub fn optype(&self) -> NhrpOp {
         let data = self.buffer.as_ref();
         data[OPTYPE].into()
+    }
+
+    pub fn calculate_checksum(&self) -> u16 {
+        let len = self.length() as usize;
+        let mut uints = vec![0; len/2].into_boxed_slice();
+        BigEndian::read_u16_into(&self.buffer.as_ref()[..len], &mut uints[..]);
+        let mut checksum = 0u32;
+
+        checksum = uints.iter().fold(checksum, |a,x| a + *x as u32);
+
+        if len & 1 == 1 {
+            checksum += self.buffer.as_ref()[len] as u32
+        }
+
+        while checksum & 0xffff0000 != 0 {
+            checksum = (checksum & 0xffff) + (checksum >> 16);
+        }
+
+        checksum as u16
     }
 }
 
@@ -141,6 +168,11 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> NhrpBuffer<T> {
     pub fn set_prosnap(&mut self, value: [u8; 5]) {
         let data = self.buffer.as_mut();
         data[SNAP].copy_from_slice(&value);
+    }
+
+    pub fn set_protocol_type(&mut self, value: ProtocolType) {
+        self.set_protype(value.protype.into());
+        self.set_prosnap(value.prosnap);
     }
 
     pub fn set_hopcount(&mut self, value: u8) {
