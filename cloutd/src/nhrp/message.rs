@@ -119,6 +119,7 @@ impl Emitable for NhrpMessage {
 
         let mut mbuffer = NhrpBuffer::new(buffer);
         mbuffer.set_length(self.buffer_len() as u16);
+        mbuffer.set_extoffset(self.buffer_len() as u16);
         mbuffer.set_checksum(0);
         let chksum = mbuffer.calculate_checksum();
         mbuffer.set_checksum(chksum);

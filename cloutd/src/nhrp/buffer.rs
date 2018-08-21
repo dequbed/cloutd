@@ -115,14 +115,15 @@ impl<T: AsRef<[u8]>> NhrpBuffer<T> {
         checksum = uints.iter().fold(checksum, |a,x| a + *x as u32);
 
         if len & 1 == 1 {
-            checksum += self.buffer.as_ref()[len] as u32
+            checksum += self.buffer.as_ref()[len-1] as u32
         }
 
+        // This one goes wrong somehow
         while checksum & 0xffff0000 != 0 {
             checksum = (checksum & 0xffff) + (checksum >> 16);
         }
 
-        checksum as u16
+        !checksum as u16
     }
 }
 
