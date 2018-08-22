@@ -3,6 +3,39 @@ use super::*;
 use super::cie::buffer::CieBuffer;
 use super::cie::message::ClientInformationEntry;
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum RegistrationCode {
+    Success,
+    Prohibited,
+    InsufficientResources,
+    AlreadyRegistered,
+    Unknown(u8)
+}
+impl From<u8> for RegistrationCode {
+    fn from(value: u8) -> RegistrationCode {
+        use RegistrationCode::*;
+        match value {
+            0 => Success,
+            4 => Prohibited,
+            5 => InsufficientResources,
+            14 => AlreadyRegistered,
+            _ => Unknown(value),
+        }
+    }
+}
+impl From<RegistrationCode> for u8 {
+    fn from(value: RegistrationCode) -> u8 {
+        use RegistrationCode::*;
+        match value {
+            Success => 0,
+            Prohibited => 4,
+            InsufficientResources => 5,
+            AlreadyRegistered => 14,
+            Unknown(v) => v
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct RegistrationReplyMessage {
     header: CommonHeader,
@@ -10,7 +43,25 @@ pub struct RegistrationReplyMessage {
 }
 
 impl RegistrationReplyMessage {
-    pub fn new(header: CommonHeader, cie: ClientInformationEntry) -> Self {
+    pub fn new(request_id: u32,
+               code: RegistrationCode,
+               mut cie: ClientInformationEntry,
+               src_nbma_addr: Vec<u8>,
+               src_proto_addr: Vec<u8>,
+               dst_proto_addr: Vec<u8>,
+               unique: bool
+    ) -> Self {
+        let header = CommonHeader {
+            flags: if unique { 0x8000 } else { 0 },
+            request_id: request_id,
+            src_nbma_addr: src_nbma_addr,
+            src_nbma_saddr: Vec::with_capacity(0),
+            src_proto_addr: src_proto_addr,
+            dst_proto_addr: dst_proto_addr,
+        };
+
+        cie.code = code.into();
+
         RegistrationReplyMessage {
             header: header, cie: cie,
         }

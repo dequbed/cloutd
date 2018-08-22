@@ -19,3 +19,6 @@ mod purge_request;
 pub use self::purge_request::*;
 mod purge_reply;
 pub use self::purge_reply::*;
+
+mod traits;
+pub use self::traits::*;

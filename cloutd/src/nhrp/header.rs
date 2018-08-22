@@ -180,5 +180,6 @@ impl Emitable for FixedHeader {
         buffer.set_protocol_type(self.protocol_type);
         buffer.set_hopcount(self.hopcount);
         buffer.set_optype(self.optype);
+        buffer.set_version(1);
     }
 }

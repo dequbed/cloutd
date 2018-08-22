@@ -154,7 +154,7 @@ fn mainw() {
                 let header = FixedHeader::new(header.afn(), header.protocol_type(),
                     header.hopcount(), NhrpOp::RegistrationReply);
 
-                let op = RegistrationReplyMessage::new(hdr.request_id, RegistrationCode::Success, cies[0].clone(), vec![192,168,178,46], vec![10,0,0,1], hdr.src_proto_addr, true);
+                let op = RegistrationReplyMessage::new(hdr.request_id, RegistrationCode::Success, cies[0].clone(), hdr.src_nbma_addr, hdr.src_proto_addr, vec![10,0,0,1], true);
 
                 let mut response = NhrpMessage::new(header, RegistrationReply(op));
                 Some((response, sourceaddr))

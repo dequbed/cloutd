@@ -1,4 +1,4 @@
-use {Parseable, Emitable, Result};
+use {Parseable, Emitable, Result, Error};
 use super::*;
 use super::cie::buffer::CieIterator;
 use super::cie::message::ClientInformationEntry;
@@ -14,6 +14,10 @@ impl RegistrationRequestMessage {
         RegistrationRequestMessage {
             header: header, cie: cie,
         }
+    }
+
+    pub fn header(&self) -> &CommonHeader {
+        &self.header
     }
 
     pub fn split(self) -> (CommonHeader, Vec<ClientInformationEntry>) {

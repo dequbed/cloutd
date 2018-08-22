@@ -57,10 +57,10 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<CommonHeader> for OperationBuffer<&'
 
 impl Emitable for CommonHeader {
     fn buffer_len(&self) -> usize {
-        8 + self.src_nbma_addr.len()
-          + self.src_nbma_saddr.len()
-          + self.src_proto_addr.len()
-          + self.dst_proto_addr.len()
+        10 + self.src_nbma_addr.len()
+           + self.src_nbma_saddr.len()
+           + self.src_proto_addr.len()
+           + self.dst_proto_addr.len()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
