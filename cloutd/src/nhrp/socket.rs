@@ -17,6 +17,8 @@ use std::os::unix::io::RawFd;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use byteorder::{ByteOrder, NativeEndian};
+use iovec::IoVec;
+use iovec::unix;
 
 use futures::{Poll, Async};
 
@@ -102,10 +104,19 @@ impl NhrpRawSocket {
         let slen = addr_to_sockaddr(*addr, &mut caddr);
         let caddr_ptr = &caddr as *const SockAddr as *const c::sockaddr;
 
-        let cbuf = buf.as_ptr();
-        let len = buf.len();
-        let flags = 0;
-        let res = unsafe { c::sendto(self.fd, cbuf as *const c::c_void, len, flags, caddr_ptr, slen) };
+        let iov: &[&IoVec] = &mut [buf.into()];
+        let iovs = unix::as_os_slice(iov);
+        let msg = c::msghdr {
+            msg_name: caddr_ptr as *mut c::c_void,
+            msg_namelen: slen,
+            msg_iov: iovs.as_ptr() as *mut c::iovec,
+            msg_iovlen: iovs.len(),
+            msg_control: (0 as *mut c::c_void),
+            msg_controllen: 0,
+            msg_flags: 0,
+        };
+
+        let res = unsafe { c::sendmsg(self.fd, &msg as *const c::msghdr, 0) };
         if res < 0 {
             return Err(io::Error::last_os_error());
         }
@@ -157,13 +168,16 @@ pub fn addr_to_sockaddr(addr: IpAddr, sockaddr: &mut SockAddr) -> c::socklen_t {
     use std::mem;
     match addr {
         V4(addr) => {
-            let bytes = addr.octets();
             (*sockaddr).sll_family = c::AF_PACKET as u16;
+            (*sockaddr).sll_protocol = 0x2001u16.to_be();
+            (*sockaddr).sll_ifindex = 6; // TODO!
+            (*sockaddr).sll_halen = 4u8;
+
+            let bytes = addr.octets();
             let mut addrbuf = &mut sockaddr.sll_addr[0..4];
             addrbuf.copy_from_slice(&bytes);
-            (*sockaddr).sll_halen = bytes.len() as u8;
-            (*sockaddr).sll_ifindex = 6; // TODO!
-            (*sockaddr).sll_protocol = 0x2001u16.to_be();
+            addrbuf.reverse();
+
             mem::size_of::<SockAddr>() as c::socklen_t
         }
         _ => {0}
@@ -175,10 +189,6 @@ pub fn sockaddr_to_addr(addr: &SockAddr) -> io::Result<IpAddr> {
     match addr.sll_hatype {
         778 /*c::ARPHRD_IPGRE*/ => {
             if addr.sll_protocol == 0x2001u16.to_be() {
-
-                // FIXME: Find a better way to figure out the underlying address type
-                //        Maybe don't strip the GRE header (aka use PROTO_RAW in the socket) and
-                //        look at the ethertype?
 
                 let ip = NativeEndian::read_u32(&addr.sll_addr[0..4]).into();
                 Ok(IpAddr::V4(ip))

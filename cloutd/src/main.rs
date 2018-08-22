@@ -37,6 +37,7 @@ extern crate netlink_socket;
 
 extern crate core;
 extern crate byteorder;
+extern crate iovec;
 
 use slog::Drain;
 
@@ -84,17 +85,6 @@ fn mainw() {
         }
     };
 
-    trace!("Opening NHRP socket...");
-    let nhrpsock = match nhrp::NhrpSocket::new() {
-        Ok(s) => {
-            trace!("Opened NHRP socket.");
-            s
-        },
-        Err(e) => {
-            error!("Failed to open NHRP socket"; "error" => %e);
-            return;
-        }
-    };
     trace!("Opening Netlink socket...");
     let nlsock = {
         let mut socket = match TokioSocket::new(Protocol::Route) {
@@ -122,52 +112,65 @@ fn mainw() {
         socket
     };
 
-    let (nlsink,nlstream) = NetlinkFramed::new(nlsock, NetlinkCodec::<NetlinkMessage>::new()).split();
+    // nlstream will produce a Stream of RTNL messages from the kernel to us, including Neighbour
+    // table lookups. We need to filter/split those messages and act on each of the messages of the
+    // filtered/split stream.
+    let (nlsink,_nlstream) = NetlinkFramed::new(nlsock, NetlinkCodec::<NetlinkMessage>::new()).split();
 
-    let nlrequest: NetlinkMessage = pkt(6);
-/*
- *    let sendfut = nlsink.send((nlrequest, SocketAddr::new(0,0))).and_then(|_| Ok(())).map_err(|e| error!("{:?}", e));
- *
- *    let (nhrpsink,nhrpstream) = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec::<NhrpMessage>::new()).split();
- *
- *    let (tx, rx) = mpsc::unbounded();
- *
- *    let future = nhrpstream.for_each(|(frame, addr)| {
- *        use nhrp::operation::Operation::*;
- *        let (header, op) = frame.into_parts();
- *        match op {
- *            RegistrationRequest(msg) => {
- *                let (h, c) = msg.split();
- *                c[0].code = 0;
- *                let tmp = h.src_proto_addr;
- *                h.src_proto_addr = h.dst_proto_addr;
- *                h.dst_proto_addr = tmp;
- *                let d = h.src_nbma_addr;
- *                let dst = std::net::Ipv4Addr::new(d[0], d[1], d[2], d[3]).into();
- *                h.src_nbma_addr = vec![192,168,178,46];
- *                let res = RegistrationReplyMessage::new(h, c[0]);
- *                let m = NhrpMessage {
- *                    header: header,
- *                    operation: RegistrationReply(res),
- *                };
- *                tx.send((m,dst));
- *                Ok(())
- *            },
- *            _ => {
- *                trace!("{:?}", op);
- *                Ok(())
- *            }
- *        }
- *    }).map_err(|e| error!("{:?}", e));
- *
- *    let nlfuture = nlstream.for_each(|frame| {trace!("{:?}", frame.0); Ok(())}).map_err(|e| error!("{:?}", e));
- *
- *    trace!("Spawning futures...");
- *    //rt.spawn(nlfuture);
- *    rt.spawn(future);
- *    //rt.spawn(sendfut);
- *    trace!("Spawned futures.");
- */
+    // Configure the Neighbour table of $INTERFACE to use application probes only:
+    let ifcfg: NetlinkMessage = pkt(6);
+    let kernel = SocketAddr::new(0,0);
+    let sendfut = nlsink.send((ifcfg, kernel))
+                        .and_then(|sink| sink.flush())
+                        .map_err(|e| error!("{:?}", e));
+
+    // We need the interface configured to do any NHRP processing as NHC (FIXME: Not so much on NHS)
+    trace!("Configuring Network interface...");
+    let _nlsink = rt.block_on(sendfut);
+    trace!("Configured Network interface.");
+
+    trace!("Opening NHRP socket...");
+    let nhrpsock = match nhrp::NhrpSocket::new() {
+        Ok(s) => {
+            trace!("Opened NHRP socket.");
+            s
+        },
+        Err(e) => {
+            error!("Failed to open NHRP socket"; "error" => %e);
+            return;
+        }
+    };
+    //1. nhrpstream <- listen
+    let (nhrpsink,nhrpstream) = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec::<NhrpMessage>::new()).split();
+
+    let replies = nhrpstream.filter_map(move |(message, sourceaddr)| {
+        use nhrp::operation::Operation::*;
+        let (header,operation) = message.into_parts();
+        let op = operation.clone();
+        trace!("Received NHRP frame from {}: {:?}", sourceaddr, operation);
+        match operation {
+            RegistrationRequest(msg) => {
+                let (hdr, cies) = msg.split();
+                let header = FixedHeader::new(header.afn(), header.protocol_type(),
+                    header.hopcount(), NhrpOp::RegistrationReply);
+
+                let op = RegistrationReplyMessage::new(hdr.request_id, RegistrationCode::Success, cies[0].clone(), vec![192,168,178,46], vec![10,0,0,1], hdr.src_proto_addr, true);
+
+                let mut response = NhrpMessage::new(header, RegistrationReply(op));
+                Some((response, sourceaddr))
+            },
+            _ => {
+                None
+            }
+        }
+    });
+
+    let replies = replies.map(|(f,a)| { trace!("Sending {:?} to {}", f, a); (f,a) });
+    let future = nhrpsink.send_all(replies).and_then(|_| Ok(())).map_err(|e| error!("{:?}", e));
+
+    trace!("Spawning futures...");
+    rt.spawn(future);
+    trace!("Spawned futures.");
 
     rt.shutdown_on_idle().wait().unwrap();
 }
