@@ -65,12 +65,12 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpMessage> for NhrpBuffer<&'a T> {
                 Operation::RegistrationReply(msg)
             },
             PurgeRequest => {
-                let msg: PurgeRequestMessage
+                let msg: PurgeMessage
                     = OperationBuffer::new(&self.payload()).parse()?;
                 Operation::PurgeRequest(msg)
             },
             PurgeReply => {
-                let msg: PurgeReplyMessage
+                let msg: PurgeMessage
                     = OperationBuffer::new(&self.payload()).parse()?;
                 Operation::PurgeReply(msg)
             },

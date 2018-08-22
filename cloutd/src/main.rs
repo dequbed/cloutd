@@ -158,6 +158,12 @@ fn mainw() {
                 let mut response = NhrpMessage::new(header, RegistrationReply(op));
                 Some((response, sourceaddr))
             },
+            PurgeRequest(msg) => {
+                let header = FixedHeader::new(header.afn(), header.protocol_type(),
+                    header.hopcount(), NhrpOp::PurgeReply);
+                let response = NhrpMessage::new(header, PurgeRequest(msg));
+                Some((response, sourceaddr))
+            }
             _ => {
                 None
             }

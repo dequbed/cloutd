@@ -6,6 +6,6 @@ pub enum Operation {
     ResolutionReply(ResolutionReplyMessage),
     RegistrationRequest(RegistrationRequestMessage),
     RegistrationReply(RegistrationReplyMessage),
-    PurgeRequest(PurgeRequestMessage),
-    PurgeReply(PurgeReplyMessage),
+    PurgeRequest(PurgeMessage),
+    PurgeReply(PurgeMessage),
 }

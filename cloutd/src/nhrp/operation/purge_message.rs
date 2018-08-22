@@ -4,13 +4,13 @@ use super::cie::buffer::CieIterator;
 use super::cie::message::ClientInformationEntry;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct PurgeReplyMessage {
+pub struct PurgeMessage {
     header: CommonHeader,
     cie: Vec<ClientInformationEntry>,
 }
 
-impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<PurgeReplyMessage> for OperationBuffer<&'a T> {
-    fn parse(&self) -> Result<PurgeReplyMessage> {
+impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<PurgeMessage> for OperationBuffer<&'a T> {
+    fn parse(&self) -> Result<PurgeMessage> {
         let header = <Self as Parseable<CommonHeader>>::parse(self)?;
         let cies = CieIterator::new(self.payload());
         let mut ciev = Vec::new();
@@ -21,14 +21,14 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<PurgeReplyMessage> for OperationBuff
             }
         }
 
-        Ok(PurgeReplyMessage {
+        Ok(PurgeMessage {
             header: header,
             cie: ciev,
         })
     }
 }
 
-impl Emitable for PurgeReplyMessage {
+impl Emitable for PurgeMessage {
     fn buffer_len(&self) -> usize {
         self.header.buffer_len() + self.cie.buffer_len()
     }
