@@ -146,7 +146,6 @@ fn mainw() {
     let replies = nhrpstream.filter_map(move |(message, sourceaddr)| {
         use nhrp::operation::Operation::*;
         let (header,operation) = message.into_parts();
-        let op = operation.clone();
         trace!("Received NHRP frame from {}: {:?}", sourceaddr, operation);
         match operation {
             RegistrationRequest(msg) => {
