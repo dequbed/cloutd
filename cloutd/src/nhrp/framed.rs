@@ -9,10 +9,14 @@ use std::net::{IpAddr, Ipv4Addr/*, Ipv6Addr*/};
 
 use futures::{Async, Poll, Stream, Sink, StartSend, AsyncSink};
 
-use super::NhrpSocket;
+use super::{NhrpSocket, NhrpCodec, NhrpMessage, ProtocolType, FixedHeader};
+
+use super::operation::Operation;
 
 use tokio_codec::{Decoder, Encoder};
 use bytes::{BytesMut, BufMut};
+
+use {Result, Error};
 
 #[must_use = "sinks do nothing unless polled"]
 #[derive(Debug)]
