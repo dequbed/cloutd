@@ -3,6 +3,8 @@ use super::*;
 use super::cie::buffer::CieBuffer;
 use super::cie::message::ClientInformationEntry;
 
+use std::net::IpAddr;
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum RegistrationCode {
     Success,
@@ -46,16 +48,15 @@ impl RegistrationReplyMessage {
     pub fn new(request_id: u32,
                code: RegistrationCode,
                mut cie: ClientInformationEntry,
-               src_nbma_addr: Vec<u8>,
-               src_proto_addr: Vec<u8>,
-               dst_proto_addr: Vec<u8>,
+               src_nbma_addr: IpAddr,
+               src_proto_addr: IpAddr,
+               dst_proto_addr: IpAddr,
                unique: bool
     ) -> Self {
         let header = CommonHeader {
             flags: if unique { 0x8000 } else { 0 },
             request_id: request_id,
             src_nbma_addr: src_nbma_addr,
-            src_nbma_saddr: Vec::with_capacity(0),
             src_proto_addr: src_proto_addr,
             dst_proto_addr: dst_proto_addr,
         };
