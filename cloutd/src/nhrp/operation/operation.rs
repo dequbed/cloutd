@@ -9,3 +9,19 @@ pub enum Operation {
     PurgeRequest(PurgeMessage),
     PurgeReply(PurgeMessage),
 }
+
+use NhrpOp;
+impl Operation {
+    pub fn optype(&self) -> NhrpOp {
+        use Operation::*;
+        use NhrpOp as N;
+        match *self {
+            ResolutionRequest(_) => N::ResolutionRequest,
+            ResolutionReply(_) => N::ResolutionReply,
+            RegistrationRequest(_) => N::RegistrationRequest,
+            RegistrationReply(_) => N::RegistrationReply,
+            PurgeRequest(_) => N::PurgeRequest,
+            PurgeReply(_) => N::PurgeReply,
+        }
+    }
+}

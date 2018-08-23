@@ -17,6 +17,3 @@ mod registration_reply;
 pub use self::registration_reply::*;
 mod purge_message;
 pub use self::purge_message::*;
-
-mod traits;
-pub use self::traits::*;
