@@ -53,6 +53,9 @@ use byteorder::{ByteOrder, NativeEndian};
 use netlink_socket::{TokioSocket, SocketAddr, Protocol};
 use rtnetlink::{NetlinkFramed, NetlinkCodec, NetlinkMessage};
 
+use std::net::IpAddr;
+use std::collections::HashMap;
+
 mod nhrp;
 use nhrp::*;
 mod netlink;
@@ -62,6 +65,8 @@ use error::*;
 
 mod traits;
 use traits::*;
+
+type Server = HashMap<IpAddr, IpAddr>;
 
 fn mainw() {
     let decorator = slog_term::TermDecorator::new().build();
@@ -141,7 +146,10 @@ fn mainw() {
         }
     };
     //1. nhrpstream <- listen
-    let (nhrpsink,nhrpstream) = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec::<NhrpMessage>::new()).split();
+    let framed = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec::<NhrpMessage>::new());
+    let (nhrpsink, nhrpstream) = nhrp::NhrpMessageFramed::new()
+
+    let server = Server::new();
 
     let replies = nhrpstream.filter_map(move |(message, sourceaddr)| {
         use nhrp::operation::Operation::*;
@@ -156,21 +164,21 @@ fn mainw() {
                 let op = RegistrationReplyMessage::new(hdr.request_id, RegistrationCode::Success, cies[0].clone(), hdr.src_nbma_addr, hdr.src_proto_addr, vec![10,0,0,1], true);
 
                 let mut response = NhrpMessage::new(header, RegistrationReply(op));
-                Some((response, sourceaddr))
+                Some(Ok((response, sourceaddr)))
             },
             PurgeRequest(msg) => {
                 let header = FixedHeader::new(header.afn(), header.protocol_type(),
                     header.hopcount(), NhrpOp::PurgeReply);
                 let response = NhrpMessage::new(header, PurgeRequest(msg));
-                Some((response, sourceaddr))
-            }
+                Some(Ok((response, sourceaddr)))
+            },
             _ => {
                 None
             }
         }
     });
 
-    let replies = replies.map(|(f,a)| { trace!("Sending {:?} to {}", f, a); (f,a) });
+    let replies = replies.and_then(|f| f.map(|(f,a)| { trace!("Sending {:?} to {}", f, a); (f,a) }));
     let future = nhrpsink.send_all(replies).and_then(|_| Ok(())).map_err(|e| error!("{:?}", e));
 
     trace!("Spawning futures...");
