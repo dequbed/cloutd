@@ -10,6 +10,7 @@ pub enum Error {
     Io(io::Error),
     Truncated,
     Exhausted,
+    NotImplemented,
 }
 
 impl Display for Error {
@@ -19,6 +20,7 @@ impl Display for Error {
             Io(ref err) => write!(f, "IO error: {}", err),
             Truncated => write!(f, "Packet was truncated!"),
             Exhausted => write!(f, "Buffer to small!"),
+            NotImplemented => write!(f, "Not implemented"),
         }
     }
 }
