@@ -1,5 +1,10 @@
 use super::*;
-use {Parseable, Emitable, Result};
+use {Parseable, Emitable, Result, Error};
+
+use std::net::IpAddr::{self, *};
+use std::net::{Ipv4Addr, Ipv6Addr};
+
+use byteorder::{ByteOrder, BigEndian};
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum AddrTL {
@@ -32,10 +37,9 @@ impl From<AddrTL> for u8 {
 pub struct CommonHeader {
     pub flags: u16,
     pub request_id: u32,
-    pub src_nbma_addr: Vec<u8>,
-    pub src_nbma_saddr: Vec<u8>,
-    pub src_proto_addr: Vec<u8>,
-    pub dst_proto_addr: Vec<u8>,
+    pub src_nbma_addr: IpAddr,
+    pub src_proto_addr: IpAddr,
+    pub dst_proto_addr: IpAddr,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -47,34 +51,65 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<CommonHeader> for OperationBuffer<&'
         Ok(CommonHeader {
             flags: self.flags(),
             request_id: self.request_id(),
-            src_nbma_addr: self.src_nbma_addr().to_vec(),
-            src_nbma_saddr: self.src_nbma_saddr().to_vec(),
-            src_proto_addr: self.src_proto_addr().to_vec(),
-            dst_proto_addr: self.dst_proto_addr().to_vec(),
+            src_nbma_addr: parse_ip(self.src_nbma_addr())?,
+            src_proto_addr: parse_ip(self.src_proto_addr())?,
+            dst_proto_addr: parse_ip(self.dst_proto_addr())?,
         })
     }
 }
 
+fn parse_ip(a: &[u8]) -> Result<IpAddr> {
+        match a.len() {
+            4 => {
+                let addr = Ipv4Addr::new(a[0], a[1], a[2], a[3]);
+                Ok(IpAddr::V4(addr))
+            },
+            16 => {
+                let mut addr: [u16; 8] = [0;8];
+                BigEndian::read_u16_into(a, &mut addr);
+                Ok(IpAddr::V6(addr.into()))
+            },
+            _ => Err(Error::NotImplemented),
+        }
+}
+
+fn iplen(i: &IpAddr) -> usize {
+    match *i {
+        V4(_) => 4,
+        V6(_) => 16
+    }
+}
+fn write_ip(buf: &mut [u8], addr: IpAddr) {
+    match addr {
+        V4(a) => {
+            let a = a.octets();
+            buf.copy_from_slice(&a);
+        }
+        V6(a) => {
+            let a = a.octets();
+            buf.copy_from_slice(&a);
+        }
+    };
+}
+
 impl Emitable for CommonHeader {
     fn buffer_len(&self) -> usize {
-        10 + self.src_nbma_addr.len()
-           + self.src_nbma_saddr.len()
-           + self.src_proto_addr.len()
-           + self.dst_proto_addr.len()
+        10 + iplen(&self.src_nbma_addr)
+           + iplen(&self.src_proto_addr)
+           + iplen(&self.dst_proto_addr)
     }
 
     fn emit(&self, buffer: &mut [u8]) {
         use self::AddrTL::*;
         let mut buffer = OperationBuffer::new(buffer);
-        buffer.set_src_nbma_addr_tl(NSAP(self.src_nbma_addr.len() as u8));
-        buffer.set_src_nbma_saddr_tl(NSAP(self.src_nbma_saddr.len() as u8));
-        buffer.set_src_proto_addr_len(self.src_proto_addr.len() as u8);
-        buffer.set_dst_proto_addr_len(self.dst_proto_addr.len() as u8);
+        buffer.set_src_nbma_addr_tl(NSAP(iplen(&self.src_nbma_addr) as u8));
+        buffer.set_src_nbma_saddr_tl(NSAP(0));
+        buffer.set_src_proto_addr_len(iplen(&self.src_proto_addr) as u8);
+        buffer.set_dst_proto_addr_len(iplen(&self.dst_proto_addr) as u8);
         buffer.set_flags(self.flags);
         buffer.set_request_id(self.request_id);
-        buffer.src_nbma_addr_mut().copy_from_slice(&self.src_nbma_addr);
-        buffer.src_nbma_saddr_mut().copy_from_slice(&self.src_nbma_saddr);
-        buffer.src_proto_addr_mut().copy_from_slice(&self.src_proto_addr);
-        buffer.dst_proto_addr_mut().copy_from_slice(&self.dst_proto_addr);
+        write_ip(buffer.src_nbma_addr_mut(), self.src_nbma_addr);
+        write_ip(buffer.src_proto_addr_mut(), self.src_proto_addr);
+        write_ip(buffer.dst_proto_addr_mut(), self.dst_proto_addr);
     }
 }
