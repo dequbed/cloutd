@@ -154,8 +154,8 @@ fn mainw() {
 
     let replies = nhrpstream.filter_map(move |(message, sourceaddr)| {
         use nhrp::operation::Operation::*;
-        let (header,operation) = message.into_parts();
-        trace!("Received NHRP frame from {}: {:?}", sourceaddr, operation);
+        let (header,operation, extensions) = message.into_parts();
+        trace!("Received NHRP frame from {}: {:?}, Extensions {:?}", sourceaddr, operation, extensions);
         match operation {
             RegistrationRequest(msg) => {
                 let (hdr, cies) = msg.into_parts();
@@ -179,7 +179,7 @@ fn mainw() {
 
                 let op = RegistrationReplyMessage::new(hdr.request_id, RegistrationCode::Success, cies[0].clone(), hdr.src_nbma_addr, hdr.src_proto_addr, [10,0,0,1].into(), true);
 
-                let mut response = NhrpMessage::new(header, RegistrationReply(op));
+                let mut response = NhrpMessage::new(header, RegistrationReply(op), Vec::new());
                 Some(Ok((response, sourceaddr)))
             },
             PurgeRequest(msg) => {
@@ -198,7 +198,7 @@ fn mainw() {
 
                 let header = FixedHeader::new(header.afn(), header.protocol_type(),
                     header.hopcount(), NhrpOp::PurgeReply);
-                let response = NhrpMessage::new(header, PurgeReply(msg));
+                let response = NhrpMessage::new(header, PurgeReply(msg), Vec::new());
                 Some(Ok((response, sourceaddr)))
             },
             ResolutionRequest(msg) => {

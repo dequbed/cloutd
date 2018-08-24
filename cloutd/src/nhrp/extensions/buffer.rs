@@ -47,15 +47,18 @@ impl<T: AsRef<[u8]>> ExtensionBuffer<T> {
         self.cutype() & 0x8000 == 0x8000
     }
 
-    pub fn length(&self) -> u16 {
+    pub fn payload_length(&self) -> u16 {
         let data = self.buffer.as_ref();
         BigEndian::read_u16(&data[LENGTH])
+    }
+    pub fn length(&self) -> u16 {
+        self.payload_length() + 4
     }
 }
 
 impl<'a, T: AsRef<[u8]> + ?Sized> ExtensionBuffer<&'a T> {
     pub fn payload(&self) -> &'a [u8] {
-        let range = PAYLOAD.start..self.length() as usize;
+        let range = PAYLOAD.start..(PAYLOAD.start + self.length() as usize);
         let data = self.buffer.as_ref();
         &data[range]
     }
@@ -63,7 +66,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> ExtensionBuffer<&'a T> {
 
 impl<'a, T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> ExtensionBuffer<&'a mut T> {
     pub fn payload_mut(&mut self) -> &mut [u8] {
-        let range = PAYLOAD.start..self.length() as usize;
+        let range = PAYLOAD.start..(PAYLOAD.start + self.length() as usize);
         let data = self.buffer.as_mut();
         &mut data[range]
     }

@@ -1,6 +1,6 @@
 
 pub mod buffer;
-pub use buffer::*;
+pub use self::buffer::*;
 
 pub mod extension;
-pub use extension::*;
+pub use self::extension::*;
