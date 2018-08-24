@@ -56,6 +56,8 @@ use rtnetlink::{NetlinkFramed, NetlinkCodec, NetlinkMessage};
 use std::net::IpAddr;
 use std::collections::HashMap;
 
+use std::process::Command;
+
 mod nhrp;
 use nhrp::*;
 mod netlink;
@@ -146,10 +148,9 @@ fn mainw() {
         }
     };
     //1. nhrpstream <- listen
-    let framed = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec::<NhrpMessage>::new());
-    let (nhrpsink, nhrpstream) = nhrp::NhrpMessageFramed::new()
+    let (nhrpsink, nhrpstream) = nhrp::NhrpFramed::new(nhrpsock, nhrp::NhrpCodec::<NhrpMessage>::new()).split();
 
-    let server = Server::new();
+    let mut server = Server::new();
 
     let replies = nhrpstream.filter_map(move |(message, sourceaddr)| {
         use nhrp::operation::Operation::*;
@@ -157,20 +158,51 @@ fn mainw() {
         trace!("Received NHRP frame from {}: {:?}", sourceaddr, operation);
         match operation {
             RegistrationRequest(msg) => {
-                let (hdr, cies) = msg.split();
+                let (hdr, cies) = msg.into_parts();
+
+                for cie in cies.iter() {
+                    let nbma_addr = cie.client_nbma_addr.unwrap_or(hdr.src_nbma_addr);
+                    let proto_addr = cie.client_proto_addr.unwrap_or(hdr.src_proto_addr);
+                    server.insert(proto_addr, nbma_addr);
+
+                    let out = Command::new("ip").args(&["neigh", "change", "dev", "gre0", "nud", "reachable"])
+                        .arg("to").arg(format!("{}", proto_addr))
+                        .arg("lladdr").arg(format!("{}", nbma_addr)).output().unwrap();
+                    let outstr = String::from_utf8(out.stderr).unwrap();
+                    trace!("{}", outstr);
+                }
+
+                trace!("NBMA associations are now: {:?}", server);
+
                 let header = FixedHeader::new(header.afn(), header.protocol_type(),
                     header.hopcount(), NhrpOp::RegistrationReply);
 
-                let op = RegistrationReplyMessage::new(hdr.request_id, RegistrationCode::Success, cies[0].clone(), hdr.src_nbma_addr, hdr.src_proto_addr, vec![10,0,0,1], true);
+                let op = RegistrationReplyMessage::new(hdr.request_id, RegistrationCode::Success, cies[0].clone(), hdr.src_nbma_addr, hdr.src_proto_addr, [10,0,0,1].into(), true);
 
                 let mut response = NhrpMessage::new(header, RegistrationReply(op));
                 Some(Ok((response, sourceaddr)))
             },
             PurgeRequest(msg) => {
+
+                for cie in msg.cie().iter() {
+                    let proto_addr = cie.client_proto_addr.unwrap_or(msg.header().src_proto_addr);
+                    server.remove(&proto_addr);
+
+                    let out = Command::new("ip").args(&["neigh", "remove", "dev", "gre0"])
+                        .arg("to").arg(format!("{}", proto_addr)).output().unwrap();
+                    let outstr = String::from_utf8(out.stderr).unwrap();
+                    trace!("{}", outstr);
+                }
+
+                trace!("NBMA associations are now: {:?}", server);
+
                 let header = FixedHeader::new(header.afn(), header.protocol_type(),
                     header.hopcount(), NhrpOp::PurgeReply);
-                let response = NhrpMessage::new(header, PurgeRequest(msg));
+                let response = NhrpMessage::new(header, PurgeReply(msg));
                 Some(Ok((response, sourceaddr)))
+            },
+            ResolutionRequest(msg) => {
+                None
             },
             _ => {
                 None
