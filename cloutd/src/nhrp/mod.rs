@@ -27,3 +27,6 @@ pub mod message;
 pub use self::message::*;
 pub mod operation;
 pub use self::operation::*;
+
+pub mod extensions;
+pub use self::extensions::*;
