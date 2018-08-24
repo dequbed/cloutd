@@ -20,7 +20,7 @@ impl RegistrationRequestMessage {
         &self.header
     }
 
-    pub fn split(self) -> (CommonHeader, Vec<ClientInformationEntry>) {
+    pub fn into_parts(self) -> (CommonHeader, Vec<ClientInformationEntry>) {
         (self.header, self.cie)
     }
 }

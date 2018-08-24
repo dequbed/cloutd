@@ -68,7 +68,7 @@ impl RegistrationReplyMessage {
         }
     }
 
-    pub fn split(self) -> (CommonHeader, ClientInformationEntry) {
+    pub fn into_parts(self) -> (CommonHeader, ClientInformationEntry) {
         (self.header, self.cie)
     }
 }

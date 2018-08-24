@@ -9,6 +9,20 @@ pub struct PurgeMessage {
     cie: Vec<ClientInformationEntry>,
 }
 
+impl PurgeMessage {
+    pub fn header(&self) -> &CommonHeader {
+        &self.header
+    }
+
+    pub fn cie(&self) -> &Vec<ClientInformationEntry> {
+        &self.cie
+    }
+
+    pub fn into_parts(self) -> (CommonHeader, Vec<ClientInformationEntry>) {
+        (self.header, self.cie)
+    }
+}
+
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<PurgeMessage> for OperationBuffer<&'a T> {
     fn parse(&self) -> Result<PurgeMessage> {
         let header = <Self as Parseable<CommonHeader>>::parse(self)?;
