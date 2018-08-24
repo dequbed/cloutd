@@ -1,11 +1,13 @@
 use {Parseable, Emitable, Result, Error};
 use super::{NhrpBuffer, FixedHeader};
+use super::extensions::{Extension, ExtensionIterator};
 use super::operation::Operation;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct NhrpMessage {
     pub header: FixedHeader,
     pub operation: Operation,
+    pub extensions: Vec<Extension>
 }
 
 impl NhrpMessage {
@@ -77,11 +79,20 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpMessage> for NhrpBuffer<&'a T> {
             _ => unimplemented!(),
         };
 
-        //let extensions = <Self as Parseable<Extensions>>::parse(&self.extensions())?
+        let extensioni = ExtensionIterator::new(&self.extensions());
+        let extensions = Vec::new();
+        for e in extensioni {
+            match e {
+                // FIXME: Gracefully handle extensions we don't recognice but aren't compulsory
+                Ok(e) => extensions.push(e.parse()?),
+                Err(e) => return Err(e),
+            }
+        }
 
         Ok(NhrpMessage {
             header: header,
             operation: operation,
+            extensions: extensions,
         })
     }
 }

@@ -55,6 +55,7 @@ pub enum ExtensionType {
     IETF(u16),
     Experimental(u16),
 }
+pub const EndOfExtensionsType: ExtensionType = ExtensionType::NHRP(0);
 
 impl From<u16> for ExtensionType {
     fn from(value: u16) -> ExtensionType {

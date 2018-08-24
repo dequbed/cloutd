@@ -2,7 +2,7 @@
 use {Field, Rest, Result, Error};
 use byteorder::{ByteOrder, BigEndian};
 
-use super::extension::ExtensionType;
+use super::extension::{ExtensionType, EndOfExtensionsType};
 
 const CUTYPE: Field = 0..2;
 const LENGTH: Field = 2..4;
@@ -88,5 +88,47 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> ExtensionBuffer<T> {
     pub fn set_length(&mut self, value: u16) {
         let data = self.buffer.as_mut();
         BigEndian::write_u16(&mut data[LENGTH], value)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExtensionIterator<T> {
+    position: usize,
+    buffer: T,
+}
+
+impl<T> ExtensionIterator<T> {
+    pub fn new(buffer: T) -> Self {
+        ExtensionIterator {
+            position: 0,
+            buffer: buffer,
+        }
+    }
+}
+
+impl<'a, T: AsRef<[u8]> + ?Sized + 'a> Iterator for ExtensionIterator<&'a T> {
+    type Item = Result<ExtensionBuffer<&'a [u8]>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // We already exhausted the buffer or got an invalid/empty one.
+        if self.position >= self.buffer.as_ref().len() {
+            return None
+        }
+
+        match ExtensionBuffer::new_checked(&self.buffer.as_ref()[self.position..]) {
+            Ok(extbuffer) => {
+                self.position += extbuffer.length() as usize;
+                // Fuse buffer on EoE
+                if extbuffer.extensiontype() == EndOfExtensionsType {
+                    self.position = self.buffer.as_ref().len();
+                }
+                Some(Ok(extbuffer))
+            },
+            Err(e) => {
+                // Fuse the iterator, invalid buffers can only happen if stuff goes really wrong.
+                self.position = self.buffer.as_ref().len();
+                None
+            }
+        }
     }
 }
