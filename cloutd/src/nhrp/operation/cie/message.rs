@@ -1,7 +1,7 @@
 use nhrp::cie::buffer::CieBuffer;
 
 use std::net::IpAddr::{self, *};
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::Ipv4Addr;
 
 use byteorder::{ByteOrder, BigEndian};
 
@@ -18,6 +18,7 @@ pub struct ClientInformationEntry {
     pub client_proto_addr: Option<IpAddr>,
 }
 impl ClientInformationEntry {
+    #[allow(dead_code)]
     pub fn new(code: u8, prefix_len: u8, mtu: u16, holding_time: u16, preference: u8, client_nbma_addr: Option<IpAddr>, client_proto_addr: Option<IpAddr>) -> Self {
         ClientInformationEntry {
             code: code,

@@ -1,4 +1,4 @@
-use {Parseable, Emitable, Result, Error};
+use {Parseable, Emitable, Result};
 use super::*;
 use super::cie::buffer::CieIterator;
 use super::cie::message::ClientInformationEntry;
@@ -10,6 +10,8 @@ pub struct RegistrationRequestMessage {
 }
 
 impl RegistrationRequestMessage {
+    #![allow(dead_code)]
+
     pub fn new(header: CommonHeader, cie: Vec<ClientInformationEntry>) -> Self {
         RegistrationRequestMessage {
             header: header, cie: cie,

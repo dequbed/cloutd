@@ -44,7 +44,6 @@ use slog::Drain;
 use futures::Future;
 use futures::Stream;
 use futures::Sink;
-use futures::sync::mpsc;
 
 use tokio::runtime::Runtime;
 
@@ -201,7 +200,7 @@ fn mainw() {
                 let response = NhrpMessage::new(header, PurgeReply(msg), Vec::new());
                 Some(Ok((response, sourceaddr)))
             },
-            ResolutionRequest(msg) => {
+            ResolutionRequest(_msg) => {
                 None
             },
             _ => {

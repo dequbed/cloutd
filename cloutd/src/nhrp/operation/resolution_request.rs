@@ -33,7 +33,7 @@ impl Emitable for ResolutionRequestMessage {
     fn emit(&self, buffer: &mut [u8]) {
         self.header.emit(buffer);
         match self.cie {
-            Some(ref m) => {
+            Some(_) => {
                 let endoffset = self.header.buffer_len() + self.cie.buffer_len();
                 let buffer = &mut buffer[self.header.buffer_len()..endoffset];
                 self.cie.emit(buffer);

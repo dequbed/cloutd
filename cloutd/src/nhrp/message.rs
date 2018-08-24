@@ -11,15 +11,16 @@ pub struct NhrpMessage {
 }
 
 impl NhrpMessage {
-    pub fn new(header: FixedHeader, operation: Operation) -> Self {
+    pub fn new(header: FixedHeader, operation: Operation, extensions: Vec<Extension>) -> Self {
         NhrpMessage {
             header: header,
             operation: operation,
+            extensions: extensions,
         }
     }
 
-    pub fn into_parts(self) -> (FixedHeader, Operation) {
-        (self.header, self.operation)
+    pub fn into_parts(self) -> (FixedHeader, Operation, Vec<Extension>) {
+        (self.header, self.operation, self.extensions)
     }
 
     pub fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize> {
@@ -79,8 +80,8 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpMessage> for NhrpBuffer<&'a T> {
             _ => unimplemented!(),
         };
 
-        let extensioni = ExtensionIterator::new(&self.extensions());
-        let extensions = Vec::new();
+        let extensioni = ExtensionIterator::new(self.extensions());
+        let mut extensions = Vec::new();
         for e in extensioni {
             match e {
                 // FIXME: Gracefully handle extensions we don't recognice but aren't compulsory
@@ -89,11 +90,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpMessage> for NhrpBuffer<&'a T> {
             }
         }
 
-        Ok(NhrpMessage {
-            header: header,
-            operation: operation,
-            extensions: extensions,
-        })
+        Ok(NhrpMessage::new(header, operation, extensions))
     }
 }
 
@@ -108,14 +105,16 @@ impl Emitable for NhrpMessage {
             PurgeRequest(ref msg) => msg.buffer_len(),
             PurgeReply(ref msg) => msg.buffer_len(),
         };
-        payload_len + self.header.buffer_len()
+        payload_len + self.extensions.iter().fold(0, |s,e| s + e.length()) + self.header.buffer_len()
     }
 
     fn emit(&self, buffer: &mut [u8]) {
         self.header.emit(buffer);
 
+        let eoff = self.extensions.iter().fold(0, |s,e| s + e.length());
+        let end = if eoff == 0 { self.buffer_len() } else { eoff };
         {
-            let payload = &mut buffer[self.header.buffer_len()..self.buffer_len() as usize];
+            let payload = &mut buffer[self.header.buffer_len()..end];
 
             use nhrp::operation::Operation::*;
             match self.operation {
@@ -128,9 +127,14 @@ impl Emitable for NhrpMessage {
             }
         }
 
+        {
+            let buffer = &mut buffer[eoff..self.buffer_len()];
+            self.extensions.emit(buffer);
+        }
+
         let mut mbuffer = NhrpBuffer::new(buffer);
         mbuffer.set_length(self.buffer_len() as u16);
-        mbuffer.set_extoffset(0);
+        mbuffer.set_extoffset(eoff as u16);
         mbuffer.set_checksum(0);
         let chksum = mbuffer.calculate_checksum();
         mbuffer.set_checksum(chksum);

@@ -2,7 +2,7 @@
 use {Field, Rest, Result, Error};
 use byteorder::{ByteOrder, BigEndian};
 
-use super::extension::{ExtensionType, EndOfExtensionsType};
+use super::extension::{ExtensionType, END_OF_EXTENSIONS};
 
 const CUTYPE: Field = 0..2;
 const LENGTH: Field = 2..4;
@@ -122,12 +122,12 @@ impl<'a, T: AsRef<[u8]> + ?Sized + 'a> Iterator for ExtensionIterator<&'a T> {
             Ok(extbuffer) => {
                 self.position += extbuffer.length() as usize;
                 // Fuse buffer on EoE
-                if extbuffer.extensiontype() == EndOfExtensionsType {
+                if extbuffer.extensiontype() == END_OF_EXTENSIONS {
                     self.position = self.buffer.as_ref().len();
                 }
                 Some(Ok(extbuffer))
             },
-            Err(e) => {
+            Err(_) => {
                 // Fuse the iterator, invalid buffers can only happen if stuff goes really wrong.
                 self.position = self.buffer.as_ref().len();
                 None

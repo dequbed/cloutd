@@ -68,6 +68,7 @@ impl RegistrationReplyMessage {
         }
     }
 
+    #[allow(dead_code)]
     pub fn into_parts(self) -> (CommonHeader, ClientInformationEntry) {
         (self.header, self.cie)
     }

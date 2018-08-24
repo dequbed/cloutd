@@ -12,6 +12,7 @@ pub enum Operation {
 
 use NhrpOp;
 impl Operation {
+    #[allow(dead_code)]
     pub fn optype(&self) -> NhrpOp {
         use Operation::*;
         use NhrpOp as N;

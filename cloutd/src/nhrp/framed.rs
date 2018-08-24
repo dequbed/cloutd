@@ -9,14 +9,11 @@ use std::net::{IpAddr, Ipv4Addr/*, Ipv6Addr*/};
 
 use futures::{Async, Poll, Stream, Sink, StartSend, AsyncSink};
 
-use super::{NhrpSocket, NhrpCodec, NhrpMessage, ProtocolType, FixedHeader};
-
-use super::operation::Operation;
+use super::NhrpSocket;
 
 use tokio_codec::{Decoder, Encoder};
 use bytes::{BytesMut, BufMut};
 
-use {Result, Error};
 
 #[must_use = "sinks do nothing unless polled"]
 #[derive(Debug)]
@@ -36,7 +33,7 @@ impl<C: Decoder> Stream for NhrpFramed<C> {
     fn poll(&mut self) -> Poll<Option<(Self::Item)>, Self::Error> {
         self.rd.reserve(INITIAL_RD_CAPACITY);
 
-        let (n, addr) = {
+        let (_n, addr) = {
             match unsafe { self.socket.poll_recv_from(self.rd.bytes_mut()) } {
                 Ok(Async::Ready((n, addr))) => {
                     unsafe { self.rd.advance_mut(n) };
@@ -107,6 +104,7 @@ const INITIAL_RD_CAPACITY: usize = 64 * 1024;
 const INITIAL_WR_CAPACITY: usize = 8 * 1024;
 
 impl<C> NhrpFramed<C>{
+    #![allow(dead_code)]
     pub fn new(socket: NhrpSocket, codec: C) -> NhrpFramed<C> {
         NhrpFramed {
             socket: socket,

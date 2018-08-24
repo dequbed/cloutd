@@ -2,7 +2,7 @@ use super::*;
 use {Parseable, Emitable, Result, Error};
 
 use std::net::IpAddr::{self, *};
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::Ipv4Addr;
 
 use byteorder::{ByteOrder, BigEndian};
 

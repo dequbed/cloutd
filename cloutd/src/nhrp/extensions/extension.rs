@@ -1,4 +1,4 @@
-use {Parseable, Emitable, Result, Error};
+use {Parseable, Emitable, Result};
 
 use super::buffer::{ExtensionBuffer, EXTENSION_HEADER_LEN};
 
@@ -55,7 +55,7 @@ pub enum ExtensionType {
     IETF(u16),
     Experimental(u16),
 }
-pub const EndOfExtensionsType: ExtensionType = ExtensionType::NHRP(0);
+pub const END_OF_EXTENSIONS: ExtensionType = ExtensionType::NHRP(0);
 
 impl From<u16> for ExtensionType {
     fn from(value: u16) -> ExtensionType {

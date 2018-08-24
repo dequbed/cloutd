@@ -18,6 +18,7 @@ impl PurgeMessage {
         &self.cie
     }
 
+    #[allow(dead_code)]
     pub fn into_parts(self) -> (CommonHeader, Vec<ClientInformationEntry>) {
         (self.header, self.cie)
     }

@@ -225,7 +225,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized + 'a> Iterator for CieIterator<&'a T> {
                 self.position += ciebuffer.length() as usize;
                 Some(Ok(ciebuffer))
             },
-            Err(e) => {
+            Err(_) => {
                 // Fuse the iterator. We currently really can't recover from an invalid CIE.
                 self.position = self.buffer.as_ref().len();
                 None
