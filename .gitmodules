@@ -1,3 +1,4 @@
 [submodule "netlink"]
 	path = netlink
+    branch = feature/neigh-messages
 	url = https://github.com/dequbed/netlink.git
