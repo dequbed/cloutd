@@ -61,6 +61,8 @@ impl Service for Registration {
                     trace!("{}", outstr);
                 }
 
+                debug!("NBMA Associations are now: {:?}", *map);
+
                 Ok(())
             });
 
