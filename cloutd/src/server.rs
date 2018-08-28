@@ -185,7 +185,5 @@ impl Future for ServerProto {
                 return Ok(Async::Ready(()))
             }
         }
-
-        // Lastly, send more frames if possible.
     }
 }
