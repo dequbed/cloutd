@@ -17,7 +17,7 @@ use super::{NhrpFramed, NhrpCodec, NhrpMessage, Operation};
 
 use std::net::IpAddr;
 
-use super::services::{Registration, Peers};
+use super::services::{Registration, Peers, Purge};
 
 pub type BoxedFuture<I> = Box<Future<Item = I, Error = Error>>;
 
@@ -105,6 +105,7 @@ impl<T: Routing> Future for RouterFuture<T> {
 
 pub struct NhrpRouting {
     registration: BoxedService<Operation, Operation>,
+    purge: BoxedService<Operation, Operation>,
 }
 
 impl NhrpRouting {
@@ -113,6 +114,7 @@ impl NhrpRouting {
         let l = RwLock::new(map);
         NhrpRouting {
             registration: BoxedService::new(Registration::new(l.clone())),
+            purge: BoxedService::new(Purge::new(l.clone())),
         }
     }
 }
@@ -126,6 +128,7 @@ impl Routing for NhrpRouting {
         use NhrpOp::*;
         match request.optype() {
             RegistrationRequest => Some(&mut self.registration),
+            PurgeRequest => Some(&mut self.purge),
             _ => None,
         }
     }
