@@ -52,6 +52,8 @@ impl Service for Registration {
                                                       "nud", "reachable"])
                         .arg("to").arg(format!("{}", proto_addr))
                         .arg("lladdr").arg(format!("{}", nbma_addr)).output().unwrap();
+                    let outstr = String::from_utf8(out.stderr).unwrap();
+                    trace!("{}", outstr);
                     let out = Command::new("ip").args(&["neigh", "change", "dev", "gre0",
                                                       "nud", "reachable"])
                         .arg("to").arg(format!("{}", proto_addr))
