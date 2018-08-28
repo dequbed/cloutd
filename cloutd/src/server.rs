@@ -9,10 +9,12 @@
  */
 
 
-use futures::{Future, Poll, Async, Stream, Sink};
+use futures::{Future, Poll, Async, Stream, Sink, AsyncSink};
 
 use {Result, Error};
 use super::{NhrpFramed, NhrpCodec, NhrpMessage, Operation};
+
+use std::net::IpAddr;
 
 pub type BoxedFuture<I> = Box<Future<Item = I, Error = Error>>;
 
@@ -112,6 +114,7 @@ impl Routing for NhrpRouting {
 pub struct ServerProto {
     transport: NhrpFramed<NhrpCodec<NhrpMessage>>,
     service: Router<NhrpRouting>,
+    waiting: Option<(NhrpMessage, IpAddr)>
 }
 
 impl ServerProto {
@@ -119,6 +122,7 @@ impl ServerProto {
         ServerProto {
             transport: transport,
             service: Router::new(NhrpRouting),
+            waiting: None,
         }
     }
 }
@@ -128,8 +132,11 @@ impl Future for ServerProto {
     type Error = Error;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        // First off, check if there are still items to be sent in the pipeline
+        try_ready!(self.transport.poll_complete());
+
+        // Process as many framed as possible per tick
         loop {
-            // Process as much as possible each tick
             if let Some((message, addr)) = try_ready!(self.transport.poll()) {
                 let (header,operation,extension) = message.into_parts();
                 let f = self.service.call(operation);
@@ -141,8 +148,16 @@ impl Future for ServerProto {
                     Ok(response)
                 });
 
-                let f = f.and_then(|r| self.transport.start_send((r, addr)));
-                self.transport.poll_complete();
+                let mut f = f.and_then(|r| match self.transport.start_send((r, addr)) {
+                    Ok(AsyncSink::Ready) => Ok(()),
+                    Ok(AsyncSink::NotReady(f)) => {
+                        self.waiting = Some(f);
+                        Ok(())
+                    },
+                    Err(e) => Err(e),
+                });
+
+                try_ready!(f.poll());
                 // 1. Construct Response header
                 // 2. Construct Response extensions
                 // 3. responseheader + responseop + responseextensions = responsemessage
