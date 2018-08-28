@@ -48,6 +48,10 @@ impl Service for Registration {
 
                     map.insert(proto_addr, nbma_addr);
 
+                    let out = Command::new("ip").args(&["neigh", "add", "dev", "gre0",
+                                                      "nud", "reachable"])
+                        .arg("to").arg(format!("{}", proto_addr))
+                        .arg("lladdr").arg(format!("{}", nbma_addr)).output().unwrap();
                     let out = Command::new("ip").args(&["neigh", "change", "dev", "gre0",
                                                       "nud", "reachable"])
                         .arg("to").arg(format!("{}", proto_addr))
