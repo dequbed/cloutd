@@ -169,21 +169,20 @@ impl Future for ServerProto {
                 });
 
                 let mut f = f.and_then(|r| match self.transport.start_send((r, addr)) {
-                    Ok(AsyncSink::Ready) => Ok(()),
+                    Ok(AsyncSink::Ready) => self.transport.poll_complete(),
                     Ok(AsyncSink::NotReady(f)) => {
                         self.waiting = Some(f);
-                        Ok(())
+                        Ok(Async::NotReady)
                     },
                     Err(e) => Err(e),
                 });
 
                 try_ready!(f.poll());
-                // 1. Construct Response header
-                // 2. Construct Response extensions
-                // 3. responseheader + responseop + responseextensions = responsemessage
             } else {
                 return Ok(Async::Ready(()))
             }
         }
+
+        // Lastly, send more frames if possible.
     }
 }
