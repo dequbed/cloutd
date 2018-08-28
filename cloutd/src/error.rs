@@ -11,6 +11,7 @@ pub enum Error {
     Truncated,
     Exhausted,
     NotImplemented,
+    Invalid,
 }
 
 impl Display for Error {
@@ -21,6 +22,7 @@ impl Display for Error {
             Truncated => write!(f, "Packet was truncated!"),
             Exhausted => write!(f, "Buffer to small!"),
             NotImplemented => write!(f, "Not implemented"),
+            Invalid => write!(f, "Invalid Reqtype"),
         }
     }
 }

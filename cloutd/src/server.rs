@@ -10,15 +10,18 @@
 
 
 use futures::{Future, Poll, Async, Stream, Sink, AsyncSink};
+use futures_locks::RwLock;
 
 use {Result, Error};
 use super::{NhrpFramed, NhrpCodec, NhrpMessage, Operation};
 
 use std::net::IpAddr;
 
+use super::services::{Registration, Peers};
+
 pub type BoxedFuture<I> = Box<Future<Item = I, Error = Error>>;
 
-pub trait Service {
+pub trait Service: Send {
     type Request;
     type Response;
     type Future: Future<Item = Self::Response, Error = Error>;
@@ -49,7 +52,7 @@ impl<T, R> Service for BoxedService<T, R> {
     }
 }
 
-pub trait Routing {
+pub trait Routing: Send {
     type Request;
     type Response;
 
@@ -100,14 +103,31 @@ impl<T: Routing> Future for RouterFuture<T> {
     }
 }
 
-pub struct NhrpRouting;
+pub struct NhrpRouting {
+    registration: BoxedService<Operation, Operation>,
+}
+
+impl NhrpRouting {
+    pub fn new() -> Self {
+        let map = Peers::new();
+        let l = RwLock::new(map);
+        NhrpRouting {
+            registration: BoxedService::new(Registration::new(l.clone())),
+        }
+    }
+}
+
 impl Routing for NhrpRouting {
     type Request = Operation;
     type Response = Operation;
     type Service = BoxedService<Self::Request, Self::Response>;
 
     fn route(&mut self, request: &Self::Request) -> Option<&mut Self::Service> {
-        None
+        use NhrpOp::*;
+        match request.optype() {
+            RegistrationRequest => Some(&mut self.registration),
+            _ => None,
+        }
     }
 }
 
@@ -121,7 +141,7 @@ impl ServerProto {
     pub fn new(transport: NhrpFramed<NhrpCodec<NhrpMessage>>) -> ServerProto {
         ServerProto {
             transport: transport,
-            service: Router::new(NhrpRouting),
+            service: Router::new(NhrpRouting::new()),
             waiting: None,
         }
     }

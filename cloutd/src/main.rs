@@ -30,6 +30,7 @@ extern crate slog_scope;
 extern crate mio;
 #[macro_use]
 extern crate futures;
+extern crate futures_locks;
 extern crate libc;
 
 extern crate rtnetlink;
@@ -69,7 +70,7 @@ use traits::*;
 
 mod server;
 
-type Server = HashMap<IpAddr, IpAddr>;
+mod services;
 
 fn mainw() {
     let decorator = slog_term::TermDecorator::new().build();
@@ -153,7 +154,7 @@ fn mainw() {
 
     let server = server::ServerProto::new(t);
 
-    let mut server = server.map_err(|e| error!("{:?}", e));
+    let server = server.map_err(|e| error!("{:?}", e));
 
     trace!("Spawning futures...");
     rt.spawn(server);
@@ -188,6 +189,7 @@ fn pkt(ifid: u32) -> NetlinkMessage {
             0x08, 0x00, 0x0b, 0x00, 0x00, 0x00, 0x00, 0x00, // MCAST_PROBES = 0
             0x08, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, // UCAST_PROBES = 0
     ];
+    // Write proper ifid
     NativeEndian::write_u32(&mut buf[44..48], ifid);
     NetlinkBuffer::new_checked(&&buf[..]).unwrap().parse().unwrap()
 }
