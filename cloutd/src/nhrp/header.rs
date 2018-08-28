@@ -156,6 +156,10 @@ impl FixedHeader {
     pub fn optype(&self) -> NhrpOp {
         self.optype
     }
+
+    pub fn set_optype(&mut self, optype: NhrpOp) {
+        self.optype = optype
+    }
 }
 
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<FixedHeader> for NhrpBuffer<&'a T> {

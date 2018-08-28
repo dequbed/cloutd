@@ -67,6 +67,8 @@ use error::*;
 mod traits;
 use traits::*;
 
+mod server;
+
 type Server = HashMap<IpAddr, IpAddr>;
 
 fn mainw() {
