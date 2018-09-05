@@ -38,8 +38,10 @@ impl Service for Resolution {
             let rid = hdr.request_id;
             let src_n_a = hdr.src_nbma_addr;
             let src_p_a = hdr.src_proto_addr;
-            let dst_n_a = None;
             let dst_p_a = hdr.dst_proto_addr;
+
+            let mut dst_n_a = None;
+            let mut code = ResolutionCode::NoBindingExists;
 
             let f = self.map.write();
 
@@ -48,6 +50,7 @@ impl Service for Resolution {
                     Some(nbma_addr) => {
                         debug!("Found NBMA address {} for requested proto address {}", nbma_addr, dst_p_a);
                         dst_n_a = Some(nbma_addr);
+                        code = ResolutionCode::Success;
                     },
                     None => {
                         debug!("Could not find NBMA address for requested proto address {}", dst_p_a);
@@ -59,7 +62,7 @@ impl Service for Resolution {
 
             let f = f.map_err(|_| Error::Invalid);
 
-            Box::new(f.and_then(move |_| Ok(ResolutionReply(ResolutionReplyMessage::new(rid, ResolutionCode::Success, cie, src_n_a, src_p_a, [10,0,0,1].into(), true)))))
+            Box::new(f.and_then(move |_| Ok(ResolutionReply(ResolutionReplyMessage::new(rid, code, src_n_a, src_p_a, dst_n_a, dst_p_a, ((hdr.flags >> 15) as bool), true, true, (((hdr.flags >> 11) & 1) as bool), false, 60, 255)))))
         } else {
             panic!("Invalid request was passed to Resolution Handler");
         }
