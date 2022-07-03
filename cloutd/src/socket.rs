@@ -6,17 +6,19 @@ use std::io::{IoSlice, IoSliceMut};
 use std::net::IpAddr;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::{io, mem};
+use std::fmt::Debug;
+use std::marker::PhantomData;
 
 use thiserror::Error;
 use miette::Diagnostic;
+use nix::errno::Errno;
 
 use tokio::io::unix::AsyncFd;
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum Error {
-    #[error("NHRP socket could not be opened")]
-    #[diagnostic(code("nhrp::socket::open"))]
-    Socket(#[source] io::Error),
+    #[error(transparent)]
+    Socket(SocketError),
 
     #[error("nhrp socket async wrapper could not be constructed")]
     #[diagnostic(code("nhrp::socket::asyncfd"))]
@@ -35,6 +37,10 @@ pub enum Error {
     Send(#[source] io::Error),
 }
 
+#[derive(Debug, Error, Diagnostic)]
+#[error("opening NHRP packet socket failed")]
+pub struct SocketError(#[from] Errno);
+
 #[derive(Debug)]
 #[repr(transparent)]
 pub struct NhrpSocket {
@@ -42,14 +48,14 @@ pub struct NhrpSocket {
 }
 
 impl NhrpSocket {
-    pub fn new_v4() -> Result<NhrpSocket, Error> {
+    pub fn new() -> Result<Self, Error> {
         let protocol: SockProtocol = unsafe { mem::transmute(0x2001i32.to_be()) };
         let socket = socket(
-            AddressFamily::Inet,
+            AddressFamily::Packet,
             SockType::Datagram,
             SockFlag::SOCK_NONBLOCK,
             protocol,
-        ).map_err(|errno| Error::Socket(io::Error::from_raw_os_error(errno as i32)))?;
+        ).map_err(|errno| Error::Socket(errno.into()))?;
 
         Ok(Self {
             io: AsyncFd::new(RawNhrpSocket { socket }).map_err(Error::AsyncFd)?,

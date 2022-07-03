@@ -14,6 +14,7 @@ mod error;
 mod socket;
 
 use crate::error::CloutdError;
+use crate::socket::NhrpSocket;
 
 #[tokio::main]
 async fn main() -> Result<(), miette::Error> {
@@ -23,6 +24,10 @@ async fn main() -> Result<(), miette::Error> {
     let (nlconn, nlhandle, answers) = new_connection()
         .map_err(CloutdError::from)?;
     tokio::spawn(nlconn);
+
+    let nhrp_sock = NhrpSocket::new()?;
+
+    tracing::info!(?nhrp_sock, "Opened NHRP sockets");
 
     Ok(())
 }
