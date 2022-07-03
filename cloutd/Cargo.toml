@@ -22,7 +22,6 @@ futures-locks = "0.2"
 nom = "4.0"
 
 rtnetlink = "0.10"
-netlink-socket = { path = "../netlink/netlink-socket", features = ["tokio_support"] }
 
 slog = { version = "2.3", features = ["max_level_trace"] }
 slog-term = "2.4"
