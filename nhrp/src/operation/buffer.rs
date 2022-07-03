@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 use super::header::*;
-use {Field, Index, Rest, Result, Error};
-use byteorder::{ByteOrder, BigEndian};
+use crate::{Field, Index, Rest, Result, Error};
 
 const SHTL: Index = 0;
 const SSTL: Index = 1;
@@ -85,12 +84,12 @@ impl<T: AsRef<[u8]>> OperationBuffer<T> {
 
     pub fn flags(&self) -> u16 {
         let data = self.buffer.as_ref();
-        BigEndian::read_u16(&data[FLAGS])
+        u16::from_be_bytes(data[FLAGS].try_into().unwrap())
     }
 
     pub fn request_id(&self) -> u32 {
         let data = self.buffer.as_ref();
-        BigEndian::read_u32(&data[REQUEST_ID])
+        u32::from_be_bytes(data[REQUEST_ID].try_into().unwrap())
     }
 }
 
@@ -187,11 +186,11 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> OperationBuffer<T> {
 
     pub fn set_flags(&mut self, value: u16) {
         let data = self.buffer.as_mut();
-        BigEndian::write_u16(&mut data[FLAGS], value)
+        data[FLAGS].copy_from_slice(&value.to_be_bytes());
     }
 
     pub fn set_request_id(&mut self, value: u32) {
         let data = self.buffer.as_mut();
-        BigEndian::write_u32(&mut data[REQUEST_ID], value)
+        data[REQUEST_ID].copy_from_slice(&value.to_be_bytes());
     }
 }

@@ -1,4 +1,4 @@
-use {Parseable, Emitable, Result, Error};
+use crate::{Error, Parseable, Emitable, Result};
 use super::{NhrpBuffer, FixedHeader};
 use super::extensions::{Extension, ExtensionIterator};
 use super::operation::Operation;
@@ -23,7 +23,7 @@ impl NhrpMessage {
         (self.header, self.operation, self.extensions)
     }
 
-    pub fn to_bytes(&self, buffer: &mut [u8]) -> Result<usize> {
+    pub fn to_bytes(&self, buffer: &mut [u8]) -> crate::Result<usize> {
         if self.buffer_len() as usize > buffer.len() {
             Err(Error::Exhausted)
         } else {
@@ -42,7 +42,7 @@ impl NhrpMessage {
 
 use super::NhrpOp::*;
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpMessage> for NhrpBuffer<&'a T> {
-    fn parse(&self) -> Result<NhrpMessage> {
+    fn parse(&self) -> crate::Result<NhrpMessage> {
         let header = <Self as Parseable<FixedHeader>>::parse(self)?;
 
         use super::operation::*;
@@ -96,7 +96,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NhrpMessage> for NhrpBuffer<&'a T> {
 
 impl Emitable for NhrpMessage {
     fn buffer_len(&self) -> usize {
-        use nhrp::operation::Operation::*;
+        use crate::operation::Operation::*;
         let payload_len = match self.operation {
             ResolutionRequest(ref msg) => msg.buffer_len(),
             ResolutionReply(ref msg) => msg.buffer_len(),
@@ -116,7 +116,7 @@ impl Emitable for NhrpMessage {
         {
             let payload = &mut buffer[self.header.buffer_len()..end];
 
-            use nhrp::operation::Operation::*;
+            use crate::operation::Operation::*;
             match self.operation {
                 ResolutionRequest(ref msg) => msg.emit(payload),
                 ResolutionReply(ref msg) => msg.emit(payload),
