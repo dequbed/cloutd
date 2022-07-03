@@ -1,4 +1,4 @@
-use {Parseable, Emitable, Result};
+use crate::{Parseable, Emitable, Result};
 
 use super::buffer::{ExtensionBuffer, EXTENSION_HEADER_LEN};
 
@@ -61,10 +61,10 @@ impl From<u16> for ExtensionType {
     fn from(value: u16) -> ExtensionType {
         use self::ExtensionType::*;
         match value {
-            0x0000...0x0FFF => NHRP(value),
-            0x1000...0x11FF => ATM(value),
-            0x1200...0x37FF => IETF(value),
-            0x3800...0x3FFF => Experimental(value),
+            0x0000..=0x0FFF => NHRP(value),
+            0x1000..=0x11FF => ATM(value),
+            0x1200..=0x37FF => IETF(value),
+            0x3800..=0x3FFF => Experimental(value),
             _ => panic!("Value of {} is invalid for ExtensionType, maximum is 0x3FFF.", value),
         }
     }

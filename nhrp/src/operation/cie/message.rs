@@ -1,11 +1,9 @@
-use nhrp::cie::buffer::CieBuffer;
+use crate::cie::buffer::CieBuffer;
 
 use std::net::IpAddr::{self, *};
 use std::net::Ipv4Addr;
 
-use byteorder::{ByteOrder, BigEndian};
-
-use {Parseable, Emitable, Result, Error};
+use crate::{Parseable, Emitable, Result, Error};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ClientInformationEntry {
@@ -43,8 +41,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<ClientInformationEntry> for CieBuffe
             },
             16 => {
                 let a = self.cli_nbma_addr();
-                let mut addr: [u16; 8] = [0;8];
-                BigEndian::read_u16_into(a, &mut addr);
+                let addr: [u8; 16] = a.try_into().unwrap();
                 Ok(Some(IpAddr::V6(addr.into())))
             },
             _ => {
@@ -61,7 +58,6 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<ClientInformationEntry> for CieBuffe
             16 => {
                 let a = self.cli_proto_addr();
                 let mut addr: [u16; 8] = [0;8];
-                BigEndian::read_u16_into(a, &mut addr);
                 Ok(Some(IpAddr::V6(addr.into())))
             },
             _ => {

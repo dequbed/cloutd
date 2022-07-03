@@ -8,6 +8,22 @@
  *    handle Error = void $ liftIO $ print error
  */
 
+pub enum Error {
+
+}
+
+pub struct NhrpHandler {
+
+}
+impl NhrpHandler {
+    pub fn new() -> Self {
+        Self { }
+    }
+
+    pub async fn handle_messages(&mut self, socket: &NhrpSocket) -> Result<(), Error> {
+
+    }
+}
 
 use futures::{Future, Poll, Async, Stream, Sink, AsyncSink};
 use futures_locks::RwLock;
@@ -16,6 +32,7 @@ use {Result, Error};
 use super::{NhrpFramed, NhrpCodec, NhrpMessage, Operation};
 
 use std::net::IpAddr;
+use crate::NhrpSocket;
 
 use super::services::{Registration, Peers, Purge};
 
