@@ -58,8 +58,6 @@ use std::collections::HashMap;
 
 use std::process::Command;
 
-mod nhrp;
-use nhrp::*;
 mod netlink;
 
 mod error;
