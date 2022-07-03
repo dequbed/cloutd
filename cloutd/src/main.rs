@@ -12,11 +12,22 @@ use rtnetlink::new_connection;
 
 mod socket;
 mod kernel;
+mod error;
 
 use crate::socket::NhrpSocket;
 
 #[tokio::main]
 async fn main() -> Result<(), miette::Error> {
+    miette::set_hook(Box::new(|_| {
+        Box::new(miette::MietteHandlerOpts::new()
+            .terminal_links(true)
+            .unicode(true)
+            .color(true)
+            .rgb_colors(miette::RgbColors::Preferred)
+            .context_lines(3)
+            .build())
+    }));
+
     tracing_subscriber::fmt::init();
     tracing::info!("cloutd is starting");
 

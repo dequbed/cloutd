@@ -14,32 +14,49 @@ use miette::Diagnostic;
 use nix::errno::Errno;
 
 use tokio::io::unix::AsyncFd;
+use crate::error::{ErrnoAdvice, ErrnoErr};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum Error {
-    #[error(transparent)]
-    Socket(SocketError),
+    #[error("opening NHRP packet socket failed")]
+    #[diagnostic(code(nhrp::socket::open))]
+    Socket {
+        #[source]
+        #[diagnostic_source]
+        errno: ErrnoErr,
+        #[help]
+        help: Option<&'static str>,
+    },
 
     #[error("nhrp socket async wrapper could not be constructed")]
-    #[diagnostic(code("nhrp::socket::asyncfd"))]
+    #[diagnostic(code(nhrp::socket::asyncfd))]
     AsyncFd(#[source] io::Error),
 
     #[error("waiting for nhrp socket readiness failed")]
-    #[diagnostic(code("nhrp::socket::readiness"))]
+    #[diagnostic(code(nhrp::socket::readiness))]
     Readiness(#[source] io::Error),
 
     #[error("receiving NHRP message failed")]
-    #[diagnostic(code("nhrp::socket::recv"))]
+    #[diagnostic(code(nhrp::socket::recv))]
     Recv(#[source] io::Error),
 
     #[error("sending NHRP message failed")]
-    #[diagnostic(code("nhrp::socket::send"))]
+    #[diagnostic(code(nhrp::socket::send))]
     Send(#[source] io::Error),
 }
+impl Error {
+    fn socket(err: ErrnoErr) -> Self {
+        Self::Socket {
+            help: err.advice,
+            errno: err,
+        }
+    }
+}
 
-#[derive(Debug, Error, Diagnostic)]
-#[error("opening NHRP packet socket failed")]
-pub struct SocketError(#[from] Errno);
+pub struct Advice;
+impl ErrnoAdvice for Advice {
+    const EPERM: Option<&'static str> = Some("Opening raw packet sockets requires root privileges");
+}
 
 #[derive(Debug)]
 #[repr(transparent)]
@@ -55,7 +72,7 @@ impl NhrpSocket {
             SockType::Datagram,
             SockFlag::SOCK_NONBLOCK,
             protocol,
-        ).map_err(|errno| Error::Socket(errno.into()))?;
+        ).map_err(|errno| Error::socket(ErrnoErr::with::<Advice>(errno).into()))?;
 
         Ok(Self {
             io: AsyncFd::new(RawNhrpSocket { socket }).map_err(Error::AsyncFd)?,
