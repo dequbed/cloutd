@@ -10,10 +10,9 @@ use std::collections::HashMap;
 use std::process::Command;
 use rtnetlink::new_connection;
 
-mod error;
 mod socket;
+mod kernel;
 
-use crate::error::CloutdError;
 use crate::socket::NhrpSocket;
 
 #[tokio::main]
@@ -22,7 +21,7 @@ async fn main() -> Result<(), miette::Error> {
     tracing::info!("cloutd is starting");
 
     let (nlconn, nlhandle, answers) = new_connection()
-        .map_err(CloutdError::from)?;
+        .map_err(kernel::Error::ConnectionError)?;
     tokio::spawn(nlconn);
 
     let nhrp_sock = NhrpSocket::new()?;
