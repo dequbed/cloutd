@@ -7,15 +7,21 @@
 use std::io;
 use std::net::IpAddr;
 use std::collections::HashMap;
-
 use std::process::Command;
 use rtnetlink::new_connection;
 
+mod error;
 mod socket;
 
+use crate::error::CloutdError;
+
 #[tokio::main]
-async fn main() -> Result<(), io::Error> {
-    let (nlconn, nlhandle, answers) = new_connection()?;
+async fn main() -> Result<(), miette::Error> {
+    tracing_subscriber::fmt::init();
+    tracing::info!("cloutd is starting");
+
+    let (nlconn, nlhandle, answers) = new_connection()
+        .map_err(CloutdError::from)?;
     tokio::spawn(nlconn);
 
     Ok(())

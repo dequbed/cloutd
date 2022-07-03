@@ -1,34 +1,39 @@
-use std;
 use std::io;
+use thiserror::Error;
+use miette::Diagnostic;
 
-use std::fmt::{self, Display};
+#[derive(Debug, Error, Diagnostic)]
+#[error("cloutd encountered an error")]
+pub struct CloutdError {
+    #[source]
+    #[diagnostic_source]
+    source: Error,
 
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug)]
-pub enum Error {
-    Io(io::Error),
-    Truncated,
-    Exhausted,
-    NotImplemented,
-    Invalid,
+    #[related]
+    others: Vec<CloutdError>,
 }
+impl CloutdError {
+    pub fn new(source: Error, others: Vec<CloutdError>) -> Self {
+        Self { source, others }
+    }
 
-impl Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::Error::*;
-        match *self {
-            Io(ref err) => write!(f, "IO error: {}", err),
-            Truncated => write!(f, "Packet was truncated!"),
-            Exhausted => write!(f, "Buffer to small!"),
-            NotImplemented => write!(f, "Not implemented"),
-            Invalid => write!(f, "Invalid Reqtype"),
-        }
+    pub fn from(source: impl Into<Error>) -> Self {
+        Self { source: source.into(), others: Vec::new() }
+    }
+
+    pub fn and(&mut self, other: CloutdError) -> &mut Self {
+        self.others.push(other);
+        self
     }
 }
 
-impl From<io::Error> for Error {
-    fn from(value: io::Error) -> Error {
-        Error::Io(value)
+#[derive(Debug, Error, Diagnostic)]
+pub enum Error {
+    #[error("an IO error occured")]
+    Io(#[from] io::Error),
+}
+impl Into<CloutdError> for Error {
+    fn into(self) -> CloutdError {
+        CloutdError::from(self)
     }
 }

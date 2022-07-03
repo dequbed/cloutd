@@ -7,7 +7,33 @@ use std::net::IpAddr;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::{io, mem};
 
+use thiserror::Error;
+use miette::Diagnostic;
+
 use tokio::io::unix::AsyncFd;
+
+#[derive(Debug, Error, Diagnostic)]
+pub enum Error {
+    #[error("NHRP socket could not be opened")]
+    #[diagnostic(code("nhrp::socket::open"))]
+    Socket(#[source] io::Error),
+
+    #[error("nhrp socket async wrapper could not be constructed")]
+    #[diagnostic(code("nhrp::socket::asyncfd"))]
+    AsyncFd(#[source] io::Error),
+
+    #[error("waiting for nhrp socket readiness failed")]
+    #[diagnostic(code("nhrp::socket::readiness"))]
+    Readiness(#[source] io::Error),
+
+    #[error("receiving NHRP message failed")]
+    #[diagnostic(code("nhrp::socket::recv"))]
+    Recv(#[source] io::Error),
+
+    #[error("sending NHRP message failed")]
+    #[diagnostic(code("nhrp::socket::send"))]
+    Send(#[source] io::Error),
+}
 
 #[derive(Debug)]
 #[repr(transparent)]
@@ -16,17 +42,17 @@ pub struct NhrpSocket {
 }
 
 impl NhrpSocket {
-    pub fn new_v4() -> io::Result<NhrpSocket> {
+    pub fn new_v4() -> Result<NhrpSocket, Error> {
         let protocol: SockProtocol = unsafe { mem::transmute(0x2001i32.to_be()) };
         let socket = socket(
             AddressFamily::Inet,
             SockType::Datagram,
             SockFlag::SOCK_NONBLOCK,
             protocol,
-        )?;
+        ).map_err(|errno| Error::Socket(io::Error::from_raw_os_error(errno as i32)))?;
 
         Ok(Self {
-            io: AsyncFd::new(RawNhrpSocket { socket })?,
+            io: AsyncFd::new(RawNhrpSocket { socket }).map_err(Error::AsyncFd)?,
         })
     }
 
@@ -34,13 +60,13 @@ impl NhrpSocket {
         &self,
         bufs: &[IoSlice<'_>],
         addr: &impl SockaddrLike,
-    ) -> io::Result<usize> {
+    ) -> Result<usize, Error> {
         loop {
-            let mut guard = self.io.writable().await?;
+            let mut guard = self.io.writable().await.map_err(Error::Readiness)?;
 
             match guard.try_io(|asyncfd| asyncfd.get_ref().send_vectored(bufs, addr)) {
                 Err(_would_block) => continue,
-                Ok(result) => return result,
+                Ok(result) => return result.map_err(Error::Send),
             }
         }
     }
@@ -48,13 +74,13 @@ impl NhrpSocket {
     pub async fn recv_vectored<'a, S: SockaddrLike + 'a>(
         &self,
         bufs: &mut [IoSliceMut<'_>],
-    ) -> io::Result<RecvMsg<'a, S>> {
+    ) -> Result<RecvMsg<'a, S>, Error> {
         loop {
-            let mut guard = self.io.readable().await?;
+            let mut guard = self.io.readable().await.map_err(Error::Readiness)?;
 
             match guard.try_io(|asyncfd| asyncfd.get_ref().recv_vectored(bufs)) {
                 Err(_would_block) => continue,
-                Ok(result) => return result,
+                Ok(result) => return result.map_err(Error::Recv),
             }
         }
     }
