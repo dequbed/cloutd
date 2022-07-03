@@ -3,35 +3,16 @@ name = "cloutd"
 version = "0.7.0"
 authors = ["Nadja Reitzenstein <me@dequbed.space>", "Jakob Riepler <jakob.riepler@chaosfield.at>"]
 license = "MPL-2.0"
+edition = "2021"
 
 categories = ["network-programming"]
 keywords = ["nhrp", "vpn"]
 
 [dependencies]
-tokio = "0.1"
-tokio-codec = "0.1"
-tokio-current-thread = "0.1"
-tokio-reactor = "0.1"
-bytes = "0.4"
-byteorder = "1.2"
-iovec = "0.1.2"
-libc = "0.2"
-mio = "0.6.15"
-futures = "^0.1.20"
-futures-locks = "0.2"
-nom = "4.0"
+nix = { version = "0.24.1", features = ["socket", "uio"] }
 
-rtnetlink = "0.10"
+nhrp = { path = "../nhrp" }
 
-slog = { version = "2.3", features = ["max_level_trace"] }
-slog-term = "2.4"
-slog-async = "2.3"
-slog-scope = "4.0"
-
-[profile.release]
-opt-level = "s"
-debug = false
-lto = true
-debug-assertions = false
-codegen-units = 1
-panic = "abort"
+rtnetlink = "0.10.1"
+tokio = { version = "1.19.2", features = ["rt-multi-thread", "macros", "net"] }
+tracing = "0.1"
