@@ -11,8 +11,10 @@ use std::process::Command;
 use rtnetlink::new_connection;
 
 mod socket;
+mod codec;
 mod kernel;
 mod error;
+mod server;
 
 use crate::socket::NhrpSocket;
 

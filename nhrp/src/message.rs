@@ -13,9 +13,9 @@ pub struct NhrpMessage {
 impl NhrpMessage {
     pub fn new(header: FixedHeader, operation: Operation, extensions: Vec<Extension>) -> Self {
         NhrpMessage {
-            header: header,
-            operation: operation,
-            extensions: extensions,
+            header,
+            operation,
+            extensions,
         }
     }
 

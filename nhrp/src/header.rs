@@ -1,5 +1,5 @@
 use super::{NhrpBuffer, FIXED_HEADER_LEN};
-use crate::{Emitable, Error, Parseable};
+use crate::{Emitable, Error, Field, Parseable};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum ProtocolClass {
@@ -159,7 +159,6 @@ impl FixedHeader {
         self.optype = optype
     }
 }
-
 
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<FixedHeader> for NhrpBuffer<&'a T> {
     fn parse(&self) -> crate::Result<FixedHeader> {

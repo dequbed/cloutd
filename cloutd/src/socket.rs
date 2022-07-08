@@ -1,17 +1,17 @@
-use nix::sys::socket::{
-    recvmsg, sendmsg, socket, AddressFamily, MsgFlags, RecvMsg, SockFlag, SockProtocol, SockType,
-    SockaddrLike,
-};
+use nix::sys::socket::{recvmsg, sendmsg, socket, AddressFamily, MsgFlags, RecvMsg, SockFlag, SockProtocol, SockType, SockaddrLike, recvfrom};
 use std::io::{IoSlice, IoSliceMut};
 use std::net::IpAddr;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::{io, mem};
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 use thiserror::Error;
 use miette::Diagnostic;
 use nix::errno::Errno;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use tokio::io::unix::AsyncFd;
 use crate::error::{ErrnoAdvice, ErrnoErr};
@@ -107,7 +107,19 @@ impl NhrpSocket {
             }
         }
     }
+
+    pub async fn recv<S: SockaddrLike>(&self, buf: &mut [u8]) -> Result<(usize, Option<S>), Error> {
+        loop {
+            let mut guard = self.io.readable().await.map_err(Error::Readiness)?;
+
+            match guard.try_io(|asyncfd| asyncfd.get_ref().recv(buf)) {
+                Err(_would_block) => continue,
+                Ok(result) => return result.map_err(Error::Recv),
+            }
+        }
+    }
 }
+
 
 #[derive(Debug)]
 #[repr(transparent)]
@@ -130,6 +142,11 @@ impl RawNhrpSocket {
         bufs: &'outer mut [IoSliceMut<'inner>],
     ) -> io::Result<RecvMsg<'a, S>> {
         recvmsg(self.as_raw_fd(), bufs, None, MsgFlags::empty())
+            .map_err(|errno| io::Error::from_raw_os_error(errno as i32))
+    }
+
+    pub fn recv<S: SockaddrLike>(&self, buf: &mut [u8]) -> io::Result<(usize, Option<S>)> {
+        recvfrom(self.as_raw_fd(), buf)
             .map_err(|errno| io::Error::from_raw_os_error(errno as i32))
     }
 }

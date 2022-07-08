@@ -5,6 +5,7 @@
  */
 
 use core::ops::{Range, RangeFrom};
+use thiserror::Error;
 
 /// Represent a multi-bytes field with a fixed size in a packet
 pub(crate) type Field = Range<usize>;
@@ -31,9 +32,13 @@ pub use self::operation::*;
 pub mod extensions;
 pub use self::extensions::*;
 
+#[derive(Debug, Error)]
 pub enum Error {
+    #[error("given buffer does not contain a full message")]
     Truncated,
+    #[error("given buffer is not large enough for this message")]
     Exhausted,
+    #[error("this functionality is not yet implemented")]
     NotImplemented,
 }
 

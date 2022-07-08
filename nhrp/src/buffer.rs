@@ -21,7 +21,7 @@ pub struct NhrpBuffer<T> {
 
 impl<T: AsRef<[u8]>> NhrpBuffer<T> {
     pub fn new(buffer: T) -> NhrpBuffer<T> {
-        NhrpBuffer { buffer: buffer }
+        NhrpBuffer { buffer }
     }
 
     pub fn new_checked(buffer: T) -> Result<NhrpBuffer<T>> {
