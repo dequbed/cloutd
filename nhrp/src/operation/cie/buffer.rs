@@ -1,6 +1,5 @@
 #![allow(dead_code)]
-use {Field, Index, Rest, Result, Error};
-use byteorder::{ByteOrder, BigEndian};
+use crate::{Field, Index, Rest, Result, Error};
 
 const CODE: Index = 0;
 const PREFIX_LEN: Index = 1;
@@ -59,12 +58,12 @@ impl<T: AsRef<[u8]>> CieBuffer<T> {
 
     pub fn mtu(&self) -> u16 {
         let data = self.buffer.as_ref();
-        BigEndian::read_u16(&data[MTU])
+        u16::from_be_bytes(data[MTU].try_into().unwrap())
     }
 
     pub fn holding_time(&self) -> u16 {
         let data = self.buffer.as_ref();
-        BigEndian::read_u16(&data[HOLDING_TIME])
+        u16::from_be_bytes(data[HOLDING_TIME].try_into().unwrap())
     }
 
     // FIXME: Actually CLI_[S]ADDR_TL is context-specific
@@ -165,12 +164,12 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> CieBuffer<T> {
 
     pub fn set_mtu(&mut self, value: u16) {
         let data = self.buffer.as_mut();
-        BigEndian::write_u16(&mut data[MTU], value)
+        data[MTU].copy_from_slice(&value.to_be_bytes());
     }
 
     pub fn set_holding_time(&mut self, value: u16) {
         let data = self.buffer.as_mut();
-        BigEndian::write_u16(&mut data[HOLDING_TIME], value)
+        data[HOLDING_TIME].copy_from_slice(&value.to_be_bytes());
     }
 
     // FIXME: Actually CLI_[S]ADDR_TL is context-specific

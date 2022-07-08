@@ -1,34 +1,292 @@
-use std;
-use std::io;
+use std::fmt::{Debug, Display, Formatter};
+use thiserror::Error;
+use miette::{Diagnostic, LabeledSpan, Severity, SourceCode};
+use nix::errno::Errno;
 
-use std::fmt::{self, Display};
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug)]
-pub enum Error {
-    Io(io::Error),
-    Truncated,
-    Exhausted,
-    NotImplemented,
-    Invalid,
+#[derive(Debug, Error, Diagnostic)]
+#[error("{errno}")]
+#[diagnostic(code(errno))]
+pub struct ErrnoErr {
+    pub errno: Errno,
+    pub msg: &'static str,
+    #[help]
+    pub advice: Option<&'static str>,
 }
+impl ErrnoErr {
+    fn new(errno: Errno, advice: Option<&'static str>) -> Self {
+        Self { errno, msg: errno.desc(), advice }
+    }
 
-impl Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::Error::*;
-        match *self {
-            Io(ref err) => write!(f, "IO error: {}", err),
-            Truncated => write!(f, "Packet was truncated!"),
-            Exhausted => write!(f, "Buffer to small!"),
-            NotImplemented => write!(f, "Not implemented"),
-            Invalid => write!(f, "Invalid Reqtype"),
+    pub fn with<A: ErrnoAdvice>(errno: Errno) -> Self {
+        match errno {
+            Errno::EPERM => Self::new(errno, A::EPERM),
+            Errno::UnknownErrno => Self::new(errno, A::UNKNOWNERRNO),
+            Errno::ENOENT => Self::new(errno, A::ENOENT),
+            Errno::ESRCH => Self::new(errno, A::ESRCH),
+            Errno::EINTR => Self::new(errno, A::EINTR),
+            Errno::EIO => Self::new(errno, A::EIO),
+            Errno::ENXIO => Self::new(errno, A::ENXIO),
+            Errno::E2BIG => Self::new(errno, A::E2BIG),
+            Errno::ENOEXEC => Self::new(errno, A::ENOEXEC),
+            Errno::EBADF => Self::new(errno, A::EBADF),
+            Errno::ECHILD => Self::new(errno, A::ECHILD),
+            Errno::EAGAIN => Self::new(errno, A::EAGAIN),
+            Errno::ENOMEM => Self::new(errno, A::ENOMEM),
+            Errno::EACCES => Self::new(errno, A::EACCES),
+            Errno::EFAULT => Self::new(errno, A::EFAULT),
+            Errno::ENOTBLK => Self::new(errno, A::ENOTBLK),
+            Errno::EBUSY => Self::new(errno, A::EBUSY),
+            Errno::EEXIST => Self::new(errno, A::EEXIST),
+            Errno::EXDEV => Self::new(errno, A::EXDEV),
+            Errno::ENODEV => Self::new(errno, A::ENODEV),
+            Errno::ENOTDIR => Self::new(errno, A::ENOTDIR),
+            Errno::EISDIR => Self::new(errno, A::EISDIR),
+            Errno::EINVAL => Self::new(errno, A::EINVAL),
+            Errno::ENFILE => Self::new(errno, A::ENFILE),
+            Errno::EMFILE => Self::new(errno, A::EMFILE),
+            Errno::ENOTTY => Self::new(errno, A::ENOTTY),
+            Errno::ETXTBSY => Self::new(errno, A::ETXTBSY),
+            Errno::EFBIG => Self::new(errno, A::EFBIG),
+            Errno::ENOSPC => Self::new(errno, A::ENOSPC),
+            Errno::ESPIPE => Self::new(errno, A::ESPIPE),
+            Errno::EROFS => Self::new(errno, A::EROFS),
+            Errno::EMLINK => Self::new(errno, A::EMLINK),
+            Errno::EPIPE => Self::new(errno, A::EPIPE),
+            Errno::EDOM => Self::new(errno, A::EDOM),
+            Errno::ERANGE => Self::new(errno, A::ERANGE),
+            Errno::EDEADLK => Self::new(errno, A::EDEADLK),
+            Errno::ENAMETOOLONG => Self::new(errno, A::ENAMETOOLONG),
+            Errno::ENOLCK => Self::new(errno, A::ENOLCK),
+            Errno::ENOSYS => Self::new(errno, A::ENOSYS),
+            Errno::ENOTEMPTY => Self::new(errno, A::ENOTEMPTY),
+            Errno::ELOOP => Self::new(errno, A::ELOOP),
+            Errno::ENOMSG => Self::new(errno, A::ENOMSG),
+            Errno::EIDRM => Self::new(errno, A::EIDRM),
+            Errno::ECHRNG => Self::new(errno, A::ECHRNG),
+            Errno::EL2NSYNC => Self::new(errno, A::EL2NSYNC),
+            Errno::EL3HLT => Self::new(errno, A::EL3HLT),
+            Errno::EL3RST => Self::new(errno, A::EL3RST),
+            Errno::ELNRNG => Self::new(errno, A::ELNRNG),
+            Errno::EUNATCH => Self::new(errno, A::EUNATCH),
+            Errno::ENOCSI => Self::new(errno, A::ENOCSI),
+            Errno::EL2HLT => Self::new(errno, A::EL2HLT),
+            Errno::EBADE => Self::new(errno, A::EBADE),
+            Errno::EBADR => Self::new(errno, A::EBADR),
+            Errno::EXFULL => Self::new(errno, A::EXFULL),
+            Errno::ENOANO => Self::new(errno, A::ENOANO),
+            Errno::EBADRQC => Self::new(errno, A::EBADRQC),
+            Errno::EBADSLT => Self::new(errno, A::EBADSLT),
+            Errno::EBFONT => Self::new(errno, A::EBFONT),
+            Errno::ENOSTR => Self::new(errno, A::ENOSTR),
+            Errno::ENODATA => Self::new(errno, A::ENODATA),
+            Errno::ETIME => Self::new(errno, A::ETIME),
+            Errno::ENOSR => Self::new(errno, A::ENOSR),
+            Errno::ENONET => Self::new(errno, A::ENONET),
+            Errno::ENOPKG => Self::new(errno, A::ENOPKG),
+            Errno::EREMOTE => Self::new(errno, A::EREMOTE),
+            Errno::ENOLINK => Self::new(errno, A::ENOLINK),
+            Errno::EADV => Self::new(errno, A::EADV),
+            Errno::ESRMNT => Self::new(errno, A::ESRMNT),
+            Errno::ECOMM => Self::new(errno, A::ECOMM),
+            Errno::EPROTO => Self::new(errno, A::EPROTO),
+            Errno::EMULTIHOP => Self::new(errno, A::EMULTIHOP),
+            Errno::EDOTDOT => Self::new(errno, A::EDOTDOT),
+            Errno::EBADMSG => Self::new(errno, A::EBADMSG),
+            Errno::EOVERFLOW => Self::new(errno, A::EOVERFLOW),
+            Errno::ENOTUNIQ => Self::new(errno, A::ENOTUNIQ),
+            Errno::EBADFD => Self::new(errno, A::EBADFD),
+            Errno::EREMCHG => Self::new(errno, A::EREMCHG),
+            Errno::ELIBACC => Self::new(errno, A::ELIBACC),
+            Errno::ELIBBAD => Self::new(errno, A::ELIBBAD),
+            Errno::ELIBSCN => Self::new(errno, A::ELIBSCN),
+            Errno::ELIBMAX => Self::new(errno, A::ELIBMAX),
+            Errno::ELIBEXEC => Self::new(errno, A::ELIBEXEC),
+            Errno::EILSEQ => Self::new(errno, A::EILSEQ),
+            Errno::ERESTART => Self::new(errno, A::ERESTART),
+            Errno::ESTRPIPE => Self::new(errno, A::ESTRPIPE),
+            Errno::EUSERS => Self::new(errno, A::EUSERS),
+            Errno::ENOTSOCK => Self::new(errno, A::ENOTSOCK),
+            Errno::EDESTADDRREQ => Self::new(errno, A::EDESTADDRREQ),
+            Errno::EMSGSIZE => Self::new(errno, A::EMSGSIZE),
+            Errno::EPROTOTYPE => Self::new(errno, A::EPROTOTYPE),
+            Errno::ENOPROTOOPT => Self::new(errno, A::ENOPROTOOPT),
+            Errno::EPROTONOSUPPORT => Self::new(errno, A::EPROTONOSUPPORT),
+            Errno::ESOCKTNOSUPPORT => Self::new(errno, A::ESOCKTNOSUPPORT),
+            Errno::EOPNOTSUPP => Self::new(errno, A::EOPNOTSUPP),
+            Errno::EPFNOSUPPORT => Self::new(errno, A::EPFNOSUPPORT),
+            Errno::EAFNOSUPPORT => Self::new(errno, A::EAFNOSUPPORT),
+            Errno::EADDRINUSE => Self::new(errno, A::EADDRINUSE),
+            Errno::EADDRNOTAVAIL => Self::new(errno, A::EADDRNOTAVAIL),
+            Errno::ENETDOWN => Self::new(errno, A::ENETDOWN),
+            Errno::ENETUNREACH => Self::new(errno, A::ENETUNREACH),
+            Errno::ENETRESET => Self::new(errno, A::ENETRESET),
+            Errno::ECONNABORTED => Self::new(errno, A::ECONNABORTED),
+            Errno::ECONNRESET => Self::new(errno, A::ECONNRESET),
+            Errno::ENOBUFS => Self::new(errno, A::ENOBUFS),
+            Errno::EISCONN => Self::new(errno, A::EISCONN),
+            Errno::ENOTCONN => Self::new(errno, A::ENOTCONN),
+            Errno::ESHUTDOWN => Self::new(errno, A::ESHUTDOWN),
+            Errno::ETOOMANYREFS => Self::new(errno, A::ETOOMANYREFS),
+            Errno::ETIMEDOUT => Self::new(errno, A::ETIMEDOUT),
+            Errno::ECONNREFUSED => Self::new(errno, A::ECONNREFUSED),
+            Errno::EHOSTDOWN => Self::new(errno, A::EHOSTDOWN),
+            Errno::EHOSTUNREACH => Self::new(errno, A::EHOSTUNREACH),
+            Errno::EALREADY => Self::new(errno, A::EALREADY),
+            Errno::EINPROGRESS => Self::new(errno, A::EINPROGRESS),
+            Errno::ESTALE => Self::new(errno, A::ESTALE),
+            Errno::EUCLEAN => Self::new(errno, A::EUCLEAN),
+            Errno::ENOTNAM => Self::new(errno, A::ENOTNAM),
+            Errno::ENAVAIL => Self::new(errno, A::ENAVAIL),
+            Errno::EISNAM => Self::new(errno, A::EISNAM),
+            Errno::EREMOTEIO => Self::new(errno, A::EREMOTEIO),
+            Errno::EDQUOT => Self::new(errno, A::EDQUOT),
+            Errno::ENOMEDIUM => Self::new(errno, A::ENOMEDIUM),
+            Errno::EMEDIUMTYPE => Self::new(errno, A::EMEDIUMTYPE),
+            Errno::ECANCELED => Self::new(errno, A::ECANCELED),
+            Errno::ENOKEY => Self::new(errno, A::ENOKEY),
+            Errno::EKEYEXPIRED => Self::new(errno, A::EKEYEXPIRED),
+            Errno::EKEYREVOKED => Self::new(errno, A::EKEYREVOKED),
+            Errno::EKEYREJECTED => Self::new(errno, A::EKEYREJECTED),
+            Errno::EOWNERDEAD => Self::new(errno, A::EOWNERDEAD),
+            Errno::ENOTRECOVERABLE => Self::new(errno, A::ENOTRECOVERABLE),
+            Errno::ERFKILL => Self::new(errno, A::ERFKILL),
+            Errno::EHWPOISON => Self::new(errno, A::EHWPOISON),
+            _ => Self::new(errno, None),
         }
     }
 }
 
-impl From<io::Error> for Error {
-    fn from(value: io::Error) -> Error {
-        Error::Io(value)
-    }
+pub trait ErrnoAdvice {
+    const EPERM: Option<&'static str> = None;
+    const UNKNOWNERRNO: Option<&'static str> = None;
+    const ENOENT: Option<&'static str> = None;
+    const ESRCH: Option<&'static str> = None;
+    const EINTR: Option<&'static str> = None;
+    const EIO: Option<&'static str> = None;
+    const ENXIO: Option<&'static str> = None;
+    const E2BIG: Option<&'static str> = None;
+    const ENOEXEC: Option<&'static str> = None;
+    const EBADF: Option<&'static str> = None;
+    const ECHILD: Option<&'static str> = None;
+    const EAGAIN: Option<&'static str> = None;
+    const ENOMEM: Option<&'static str> = None;
+    const EACCES: Option<&'static str> = None;
+    const EFAULT: Option<&'static str> = None;
+    const ENOTBLK: Option<&'static str> = None;
+    const EBUSY: Option<&'static str> = None;
+    const EEXIST: Option<&'static str> = None;
+    const EXDEV: Option<&'static str> = None;
+    const ENODEV: Option<&'static str> = None;
+    const ENOTDIR: Option<&'static str> = None;
+    const EISDIR: Option<&'static str> = None;
+    const EINVAL: Option<&'static str> = None;
+    const ENFILE: Option<&'static str> = None;
+    const EMFILE: Option<&'static str> = None;
+    const ENOTTY: Option<&'static str> = None;
+    const ETXTBSY: Option<&'static str> = None;
+    const EFBIG: Option<&'static str> = None;
+    const ENOSPC: Option<&'static str> = None;
+    const ESPIPE: Option<&'static str> = None;
+    const EROFS: Option<&'static str> = None;
+    const EMLINK: Option<&'static str> = None;
+    const EPIPE: Option<&'static str> = None;
+    const EDOM: Option<&'static str> = None;
+    const ERANGE: Option<&'static str> = None;
+    const EDEADLK: Option<&'static str> = None;
+    const ENAMETOOLONG: Option<&'static str> = None;
+    const ENOLCK: Option<&'static str> = None;
+    const ENOSYS: Option<&'static str> = None;
+    const ENOTEMPTY: Option<&'static str> = None;
+    const ELOOP: Option<&'static str> = None;
+    const ENOMSG: Option<&'static str> = None;
+    const EIDRM: Option<&'static str> = None;
+    const ECHRNG: Option<&'static str> = None;
+    const EL2NSYNC: Option<&'static str> = None;
+    const EL3HLT: Option<&'static str> = None;
+    const EL3RST: Option<&'static str> = None;
+    const ELNRNG: Option<&'static str> = None;
+    const EUNATCH: Option<&'static str> = None;
+    const ENOCSI: Option<&'static str> = None;
+    const EL2HLT: Option<&'static str> = None;
+    const EBADE: Option<&'static str> = None;
+    const EBADR: Option<&'static str> = None;
+    const EXFULL: Option<&'static str> = None;
+    const ENOANO: Option<&'static str> = None;
+    const EBADRQC: Option<&'static str> = None;
+    const EBADSLT: Option<&'static str> = None;
+    const EBFONT: Option<&'static str> = None;
+    const ENOSTR: Option<&'static str> = None;
+    const ENODATA: Option<&'static str> = None;
+    const ETIME: Option<&'static str> = None;
+    const ENOSR: Option<&'static str> = None;
+    const ENONET: Option<&'static str> = None;
+    const ENOPKG: Option<&'static str> = None;
+    const EREMOTE: Option<&'static str> = None;
+    const ENOLINK: Option<&'static str> = None;
+    const EADV: Option<&'static str> = None;
+    const ESRMNT: Option<&'static str> = None;
+    const ECOMM: Option<&'static str> = None;
+    const EPROTO: Option<&'static str> = None;
+    const EMULTIHOP: Option<&'static str> = None;
+    const EDOTDOT: Option<&'static str> = None;
+    const EBADMSG: Option<&'static str> = None;
+    const EOVERFLOW: Option<&'static str> = None;
+    const ENOTUNIQ: Option<&'static str> = None;
+    const EBADFD: Option<&'static str> = None;
+    const EREMCHG: Option<&'static str> = None;
+    const ELIBACC: Option<&'static str> = None;
+    const ELIBBAD: Option<&'static str> = None;
+    const ELIBSCN: Option<&'static str> = None;
+    const ELIBMAX: Option<&'static str> = None;
+    const ELIBEXEC: Option<&'static str> = None;
+    const EILSEQ: Option<&'static str> = None;
+    const ERESTART: Option<&'static str> = None;
+    const ESTRPIPE: Option<&'static str> = None;
+    const EUSERS: Option<&'static str> = None;
+    const ENOTSOCK: Option<&'static str> = None;
+    const EDESTADDRREQ: Option<&'static str> = None;
+    const EMSGSIZE: Option<&'static str> = None;
+    const EPROTOTYPE: Option<&'static str> = None;
+    const ENOPROTOOPT: Option<&'static str> = None;
+    const EPROTONOSUPPORT: Option<&'static str> = None;
+    const ESOCKTNOSUPPORT: Option<&'static str> = None;
+    const EOPNOTSUPP: Option<&'static str> = None;
+    const EPFNOSUPPORT: Option<&'static str> = None;
+    const EAFNOSUPPORT: Option<&'static str> = None;
+    const EADDRINUSE: Option<&'static str> = None;
+    const EADDRNOTAVAIL: Option<&'static str> = None;
+    const ENETDOWN: Option<&'static str> = None;
+    const ENETUNREACH: Option<&'static str> = None;
+    const ENETRESET: Option<&'static str> = None;
+    const ECONNABORTED: Option<&'static str> = None;
+    const ECONNRESET: Option<&'static str> = None;
+    const ENOBUFS: Option<&'static str> = None;
+    const EISCONN: Option<&'static str> = None;
+    const ENOTCONN: Option<&'static str> = None;
+    const ESHUTDOWN: Option<&'static str> = None;
+    const ETOOMANYREFS: Option<&'static str> = None;
+    const ETIMEDOUT: Option<&'static str> = None;
+    const ECONNREFUSED: Option<&'static str> = None;
+    const EHOSTDOWN: Option<&'static str> = None;
+    const EHOSTUNREACH: Option<&'static str> = None;
+    const EALREADY: Option<&'static str> = None;
+    const EINPROGRESS: Option<&'static str> = None;
+    const ESTALE: Option<&'static str> = None;
+    const EUCLEAN: Option<&'static str> = None;
+    const ENOTNAM: Option<&'static str> = None;
+    const ENAVAIL: Option<&'static str> = None;
+    const EISNAM: Option<&'static str> = None;
+    const EREMOTEIO: Option<&'static str> = None;
+    const EDQUOT: Option<&'static str> = None;
+    const ENOMEDIUM: Option<&'static str> = None;
+    const EMEDIUMTYPE: Option<&'static str> = None;
+    const ECANCELED: Option<&'static str> = None;
+    const ENOKEY: Option<&'static str> = None;
+    const EKEYEXPIRED: Option<&'static str> = None;
+    const EKEYREVOKED: Option<&'static str> = None;
+    const EKEYREJECTED: Option<&'static str> = None;
+    const EOWNERDEAD: Option<&'static str> = None;
+    const ENOTRECOVERABLE: Option<&'static str> = None;
+    const ERFKILL: Option<&'static str> = None;
+    const EHWPOISON: Option<&'static str> = None;
 }

@@ -1,7 +1,5 @@
 #![allow(dead_code)]
-use {Field, Rest, Result, Error};
-use byteorder::{ByteOrder, BigEndian};
-
+use crate::{Field, Rest, Result, Error};
 use super::extension::{ExtensionType, END_OF_EXTENSIONS};
 
 const CUTYPE: Field = 0..2;
@@ -36,7 +34,7 @@ impl<T: AsRef<[u8]>> ExtensionBuffer<T> {
 
     fn cutype(&self) -> u16 {
         let data = self.buffer.as_ref();
-        BigEndian::read_u16(&data[CUTYPE])
+        u16::from_be_bytes(data[CUTYPE].try_into().unwrap())
     }
 
     pub fn extensiontype(&self) -> ExtensionType {
@@ -49,7 +47,7 @@ impl<T: AsRef<[u8]>> ExtensionBuffer<T> {
 
     pub fn payload_length(&self) -> u16 {
         let data = self.buffer.as_ref();
-        BigEndian::read_u16(&data[LENGTH])
+        u16::from_be_bytes(data[LENGTH].try_into().unwrap())
     }
     pub fn length(&self) -> u16 {
         self.payload_length() + 4
@@ -75,22 +73,23 @@ impl<'a, T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> ExtensionBuffer<&'a mut T> {
 impl<T: AsRef<[u8]> + AsMut<[u8]>> ExtensionBuffer<T> {
     pub fn set_extensiontype(&mut self, value: ExtensionType) {
         let data = self.buffer.as_mut();
-        let curr = BigEndian::read_u16(&data[CUTYPE]);
+        let curr = u16::from_be_bytes(data[CUTYPE].try_into().unwrap());
         let value: u16 = value.into();
         let value = value & 0x3FFF;
-        BigEndian::write_u16(&mut data[CUTYPE], value + (curr & 0x8000))
+
+        data[CUTYPE].copy_from_slice(&(value + (curr & 0x8000)).to_be_bytes());
     }
 
     pub fn set_compulsory(&mut self, value: bool) {
         let data = self.buffer.as_mut();
-        let curr = BigEndian::read_u16(&data[CUTYPE]);
+        let curr = u16::from_be_bytes(data[CUTYPE].try_into().unwrap());
         let value: u16 = if value { 0x8000 } else { 0 };
-        BigEndian::write_u16(&mut data[CUTYPE], value + (curr & 0x3FFF))
+        data[CUTYPE].copy_from_slice(&(value + (curr & 0x3FFF)).to_be_bytes());
     }
 
     pub fn set_length(&mut self, value: u16) {
         let data = self.buffer.as_mut();
-        BigEndian::write_u16(&mut data[LENGTH], value)
+        data[LENGTH].copy_from_slice(&value.to_be_bytes());
     }
 }
 

@@ -1,6 +1,5 @@
 use super::{NhrpBuffer, FIXED_HEADER_LEN};
-use {Parseable, Emitable, Result, Error};
-use byteorder::{ByteOrder, BigEndian};
+use crate::{Emitable, Error, Field, Parseable};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum ProtocolClass {
@@ -14,18 +13,17 @@ impl From<u16> for ProtocolClass {
     fn from(value: u16) -> ProtocolClass {
         use ProtocolClass::*;
 
-        let mut bytes = [0; 2];
-        BigEndian::write_u16(&mut bytes, value);
+        let bytes = value.to_ne_bytes();
         match bytes[0] {
             0x00 => NLPID(bytes[1]),
-            0x01 | 0x02 | 0x03 => Future(BigEndian::read_u16(&bytes)),
+            0x01 | 0x02 | 0x03 => Future(u16::from_be_bytes(bytes)),
             0x04 => ATM(bytes[1]),
             0x05 => Private(bytes[1]),
-            _ => Ethertype(BigEndian::read_u16(&bytes)),
+            _ => Ethertype(u16::from_be_bytes(bytes)),
         }
     }
 }
-// # FIXME This should be able to be statically typechecked, even without dependent types!
+
 impl From<ProtocolClass> for u16 {
     fn from(value: ProtocolClass) -> u16 {
         use ProtocolClass::*;
@@ -45,7 +43,7 @@ impl From<ProtocolClass> for u16 {
             }
         }
 
-        BigEndian::read_u16(&bytes)
+        u16::from_be_bytes(bytes)
     }
 }
 
@@ -55,13 +53,13 @@ pub struct ProtocolType {
     pub prosnap: [u8; 5],
 }
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<ProtocolType> for &'a T {
-    fn parse(&self) -> Result<ProtocolType> {
+    fn parse(&self) -> crate::Result<ProtocolType> {
         if self.as_ref().len() < 7 {
             return Err(Error::Truncated);
         }
 
         let buf = &self.as_ref();
-        let protype = BigEndian::read_u16(&buf[0..2]);
+        let protype = u16::from_be_bytes(buf[0..2].try_into().unwrap());
         let mut prosnap: [u8; 5] = [0; 5];
         prosnap.copy_from_slice(&buf[2..7]);
 
@@ -77,7 +75,7 @@ impl Emitable for ProtocolType {
     }
 
     fn emit(&self, buffer: &mut [u8]) {
-        BigEndian::write_u16(&mut buffer[0..2], self.protype.into());
+        buffer[0..2].copy_from_slice(&u16::to_be_bytes(self.protype.into()));
         let buffer = &mut buffer[2..7];
         buffer.copy_from_slice(&self.prosnap);
     }
@@ -163,7 +161,7 @@ impl FixedHeader {
 }
 
 impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<FixedHeader> for NhrpBuffer<&'a T> {
-    fn parse(&self) -> Result<FixedHeader> {
+    fn parse(&self) -> crate::Result<FixedHeader> {
         Ok(FixedHeader {
             afn: self.afn(),
             protocol_type: self.protocol_type(),

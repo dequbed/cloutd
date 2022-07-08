@@ -1,10 +1,8 @@
 use super::*;
-use {Parseable, Emitable, Result, Error};
+use crate::{Parseable, Emitable, Result, Error};
 
 use std::net::IpAddr::{self, *};
 use std::net::Ipv4Addr;
-
-use byteorder::{ByteOrder, BigEndian};
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum AddrTL {
@@ -66,7 +64,11 @@ fn parse_ip(a: &[u8]) -> Result<IpAddr> {
             },
             16 => {
                 let mut addr: [u16; 8] = [0;8];
-                BigEndian::read_u16_into(a, &mut addr);
+                for i in 0..8 {
+                    let start = i*2;
+                    let end = start + 2;
+                    addr[i] = u16::from_be_bytes(a[start..end].try_into().unwrap())
+                }
                 Ok(IpAddr::V6(addr.into()))
             },
             _ => Err(Error::NotImplemented),

@@ -10,7 +10,7 @@ pub enum Operation {
     PurgeReply(PurgeMessage),
 }
 
-use NhrpOp;
+use crate::header::NhrpOp;
 impl Operation {
     #[allow(dead_code)]
     pub fn optype(&self) -> NhrpOp {

@@ -1,8 +1,6 @@
 #![allow(dead_code)]
 use super::header::*;
-use {Field, Index, Rest, Result, Error};
-use byteorder::{ByteOrder, BigEndian};
-
+use super::{Field, Index, Rest, Result, Error};
 
 const AFN: Field = 0..2;
 const PROTYPE: Field = 2..4;
@@ -23,7 +21,7 @@ pub struct NhrpBuffer<T> {
 
 impl<T: AsRef<[u8]>> NhrpBuffer<T> {
     pub fn new(buffer: T) -> NhrpBuffer<T> {
-        NhrpBuffer { buffer: buffer }
+        NhrpBuffer { buffer }
     }
 
     pub fn new_checked(buffer: T) -> Result<NhrpBuffer<T>> {
@@ -53,18 +51,18 @@ impl<T: AsRef<[u8]>> NhrpBuffer<T> {
 
     pub fn afn(&self) -> u16 {
         let data = self.buffer.as_ref();
-        BigEndian::read_u16(&data[AFN])
+        u16::from_be_bytes(data[AFN].try_into().unwrap())
     }
 
     pub fn protype(&self) -> u16 {
         let data = self.buffer.as_ref();
-        BigEndian::read_u16(&data[PROTYPE])
+        u16::from_be_bytes(data[PROTYPE].try_into().unwrap())
     }
 
     pub fn prosnap(&self) -> [u8; 5] {
         let data = self.buffer.as_ref();
         let mut s = [0; 5];
-        s.copy_from_slice(&data[SNAP]);
+        s.copy_from_slice(data[SNAP].try_into().unwrap());
         s
     }
 
@@ -83,17 +81,17 @@ impl<T: AsRef<[u8]>> NhrpBuffer<T> {
 
     pub fn length(&self) -> u16 {
         let data = self.buffer.as_ref();
-        BigEndian::read_u16(&data[PKTSIZE])
+        u16::from_be_bytes(data[PKTSIZE].try_into().unwrap())
     }
 
     pub fn checksum(&self) -> u16 {
         let data = self.buffer.as_ref();
-        BigEndian::read_u16(&data[CHECKSUM])
+        u16::from_be_bytes(data[CHECKSUM].try_into().unwrap())
     }
 
     pub fn extoffset(&self) -> u16 {
         let data = self.buffer.as_ref();
-        BigEndian::read_u16(&data[EXTOFFSET])
+        u16::from_be_bytes(data[EXTOFFSET].try_into().unwrap())
     }
 
     pub fn version(&self) -> u8 {
@@ -109,7 +107,12 @@ impl<T: AsRef<[u8]>> NhrpBuffer<T> {
     pub fn calculate_checksum(&self) -> u16 {
         let len = self.length() as usize;
         let mut uints = vec![0; len/2].into_boxed_slice();
-        BigEndian::read_u16_into(&self.buffer.as_ref()[..len], &mut uints[..]);
+        for i in 0..(len/2) {
+            let start = 2 * i;
+            let end = start+2;
+            let array = self.buffer.as_ref()[start..end].try_into().unwrap();
+            uints[i] = u16::from_be_bytes(array);
+        }
         let mut checksum = 0u32;
 
         checksum = uints.iter().fold(checksum, |a,x| a + *x as u32);
@@ -158,12 +161,12 @@ impl<'a, T: AsRef<[u8]> + AsMut<[u8]> + ?Sized> NhrpBuffer<&'a mut T> {
 impl<T: AsRef<[u8]> + AsMut<[u8]>> NhrpBuffer<T> {
     pub fn set_afn(&mut self, value: u16) {
         let data = self.buffer.as_mut();
-        BigEndian::write_u16(&mut data[AFN], value)
+        data[AFN].copy_from_slice(&value.to_be_bytes());
     }
 
     pub fn set_protype(&mut self, value: u16) {
         let data = self.buffer.as_mut();
-        BigEndian::write_u16(&mut data[PROTYPE], value)
+        data[PROTYPE].copy_from_slice(&value.to_be_bytes());
     }
 
     pub fn set_prosnap(&mut self, value: [u8; 5]) {
@@ -183,17 +186,17 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> NhrpBuffer<T> {
 
     pub fn set_length(&mut self, value: u16) {
         let data = self.buffer.as_mut();
-        BigEndian::write_u16(&mut data[PKTSIZE], value)
+        data[PKTSIZE].copy_from_slice(&value.to_be_bytes());
     }
 
     pub fn set_checksum(&mut self, value: u16) {
         let data = self.buffer.as_mut();
-        BigEndian::write_u16(&mut data[CHECKSUM], value)
+        data[CHECKSUM].copy_from_slice(&value.to_be_bytes());
     }
 
     pub fn set_extoffset(&mut self, value: u16) {
         let data = self.buffer.as_mut();
-        BigEndian::write_u16(&mut data[EXTOFFSET], value)
+        data[EXTOFFSET].copy_from_slice(&value.to_be_bytes());
     }
 
     pub fn set_version(&mut self, value: u8) {
