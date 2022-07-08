@@ -1,6 +1,6 @@
 [package]
 name = "cloutd"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Nadja Reitzenstein <me@dequbed.space>", "Jakob Riepler <jakob.riepler@chaosfield.at>"]
 license = "MPL-2.0"
 edition = "2021"
